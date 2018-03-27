@@ -21,12 +21,16 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
+//Store is the struct that is used to load/store the session.
 type Store struct {
-	ID      string
-	Expires uint64
-	Data    map[string]interface{}
+	ID         string
+	Expiration uint64
+	Expires    uint64
+	Data       map[string]interface{}
 }
 
+//Cache is the struct that contains the connection info for retrieving/saving
+//The session data.
 type Cache struct {
 	connection *redis.Client
 }
@@ -49,9 +53,9 @@ const idOctetsStr = "ID_OCTETS"
 
 //Load is used to try and get a session from the cache. If it succeeds it will
 //load the session, otherwise it will return an error.
-func (s *Store) Load(req *http.Request) {
+func (s *Store) Load(req *http.Request) error {
 
-	cookie, _ := s.getCookieFromRequest(req)
+	cookie := s.getCookieFromRequest(req)
 
 	s.validateCookieSignature(req, cookie.Value)
 	s.extractAndValidateCookieSignatureParts(req, cookie.Value)
@@ -59,12 +63,24 @@ func (s *Store) Load(req *http.Request) {
 	storedSession, err := s.getStoredSession(req)
 
 	if err != nil {
-		log.InfoR(req, err.Error())
+		return err
 	}
 
-	if storedSession == nil {
+	s.Data, err = s.decodeSession(req, storedSession)
 
+	if err != nil {
+		return err
 	}
+
+	//Create a new session if the data is nil
+	if s.Data == nil {
+		s.Clear(req)
+		return nil
+	}
+
+	s.validateExpiration(req)
+
+	return nil
 }
 
 // Store will take a store struct, validate it, and attempt to save it
@@ -186,7 +202,7 @@ func (s *Store) validateStore() error {
 
 //getCookieFromRequest will attempt to pull the Cookie from the request. If err
 //is not nil, it will create a new Cookie and return that instead.
-func (s *Store) getCookieFromRequest(req *http.Request) (*http.Cookie, error) {
+func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
 
 	var cookie *http.Cookie
 	var err error
@@ -198,7 +214,7 @@ func (s *Store) getCookieFromRequest(req *http.Request) (*http.Cookie, error) {
 		cookie = &http.Cookie{}
 	}
 
-	return cookie, err
+	return cookie
 }
 
 //validateCookieSignature will try to validate that the length of the Cookie
@@ -242,16 +258,61 @@ func (s *Store) getRedisClientFromCache() *Cache {
 
 //getStoredSession will get the session from the Cache, and validate it.
 //If it is invalid, it will return an error.
-func (s *Store) getStoredSession(req *http.Request) ([]byte, error) {
+func (s *Store) getStoredSession(req *http.Request) (string, error) {
 	cache := s.getRedisClientFromCache()
-	storedSession := cache.getSession(s.ID)
+	storedSession, err := cache.getSession(req, s.ID)
 
-	if len(storedSession) == 0 {
-		err := errors.New("There is no stored session")
-		return nil, err
+	if err != nil {
+		return "", err
 	}
 
 	return storedSession, nil
+}
+
+//decodeSession will try to base64 decode the session and then msgpack decode it.
+func (s *Store) decodeSession(req *http.Request, session string) (map[string]interface{}, error) {
+	base64DecodedSession, err := encoding.DecodeBase64(session)
+
+	if err != nil {
+		log.InfoR(req, err.Error())
+		return nil, err
+	}
+
+	msgpackDecodedSession, err := encoding.DecodeMsgPack(base64DecodedSession)
+
+	if err != nil {
+		log.InfoR(req, err.Error())
+		return nil, err
+	}
+
+	return msgpackDecodedSession, nil
+}
+
+func (s *Store) validateExpiration(req *http.Request) error {
+	s.Expiration = s.Data["expiration"].(uint64)
+	s.Expires = s.Data["expires"].(uint64)
+
+	s.setupExpiration()
+
+	if s.Expires == 0 && s.Expiration != 0 {
+		err := errors.New("Expires is 0 and Expiration is not 0")
+
+		s.Data = nil
+		return err
+	}
+
+	now := uint64(time.Now().Unix())
+
+	if s.Expires > 0 && s.Expires <= now {
+		err := errors.New("Store has expired")
+		s.Data = nil
+
+		return err
+	}
+
+	s.Expires = 0
+
+	return nil
 }
 
 /*
@@ -278,9 +339,15 @@ func (c *Cache) setRedisClient() error {
 	return nil
 }
 
-func (c *Cache) getSession(id string) []byte {
-	var a []byte
-	return a
+func (c *Cache) getSession(req *http.Request, id string) (string, error) {
+	storedSession, err := c.connection.Get(id).Result()
+
+	if err != nil {
+		log.InfoR(req, err.Error())
+		return "", err
+	}
+
+	return storedSession, nil
 }
 
 // SetSession will take the valid Store object and save it in Redis
