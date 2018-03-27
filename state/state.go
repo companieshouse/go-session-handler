@@ -30,6 +30,7 @@ type Store struct {
 //The session data.
 type Cache struct {
 	connection *redis.Client
+	command    RedisCommand
 }
 
 //Multiples of 3 bytes avoids = padding in base64 string
@@ -88,8 +89,8 @@ func (s *Store) Store() error {
 		return err
 	}
 
-	c := &Cache{}
-	if err := c.setRedisClient(); err != nil {
+	c, err := initCache()
+	if err != nil {
 		log.Error(err)
 		return err
 	}
@@ -322,6 +323,10 @@ func (s *Store) validateExpiration(req *http.Request) error {
    CACHE
 */
 
+type RedisCommand interface {
+	Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+}
+
 // SetRedisClient into the Cache struct
 func (c *Cache) setRedisClient() error {
 	client := redis.NewClient(&redis.Options{
@@ -357,7 +362,7 @@ func (c *Cache) setSession(s *Store) error {
 	}
 	b64EncodedData := encoding.EncodeBase64(msgpackEncodedData)
 
-	_, err = c.connection.Set(s.ID, b64EncodedData, 0).Result()
+	_, err = c.command.Set(s.ID, b64EncodedData, 0).Result()
 	if err != nil {
 		return err
 	}
