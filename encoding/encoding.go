@@ -7,8 +7,11 @@ import (
 	"github.com/vmihailenco/msgpack"
 )
 
-func decodeSessionBase64() {
+//DecodeBase64 takes a base64-encoded string and decodes it to a []byte.
+func DecodeBase64(base64Encoded string) ([]byte, error) {
+	base64Decoded, err := base64.StdEncoding.DecodeString(base64Encoded)
 
+	return base64Decoded, err
 }
 
 // EncodeBase64 takes a byte array and base 64 encodes it
@@ -16,8 +19,14 @@ func EncodeBase64(bytes []byte) string {
 	return base64.StdEncoding.EncodeToString(bytes)
 }
 
-func decodeSessionMsgPack() {
+//DecodeMsgPack takes a msgpack'd []byte and decodes it to json.
+func DecodeMsgPack(msgpackEncoded []byte) (map[string]interface{}, error) {
+	var decoded map[string]interface{}
 
+	dec := msgpack.NewDecoder(bytes.NewBuffer(msgpackEncoded))
+	err := dec.Decode(&decoded)
+
+	return decoded, err
 }
 
 // EncodeMsgPack performs message pack encryption
