@@ -7,9 +7,7 @@ package state
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -30,8 +28,6 @@ type Store struct {
 type Cache struct {
 	connection *redis.Client
 }
-
-const cookieName = "__SID"
 
 //Multiples of 3 bytes avoids = padding in base64 string
 //7 * 3 bytes = (21/3) * 4 = 28 base64 characters
@@ -70,22 +66,21 @@ func (s *Store) Load(req *http.Request) {
 // Store will take a store struct, validate it, and attempt to save it
 func (s *Store) Store() error {
 
-	jsonData, _ := json.Marshal(s.Data)
-	log.Info("Attempting to store session with data: " + string(jsonData))
+	log.Info("Attempting to store session with the following data: ", s.Data)
 
-	if err := s.validateStore(); err != nil {
-		log.Error(fmt.Errorf("Error validating store: %s", err))
+	if err := s.validateSession(); err != nil {
+		log.Error(err)
 		return err
 	}
 
 	c := &Cache{}
 	if err := c.setRedisClient(); err != nil {
-		log.Error(fmt.Errorf("Error connecting to Redis client: %s", err))
+		log.Error(err)
 		return err
 	}
 
 	if err := c.setSession(s); err != nil {
-		log.Error(fmt.Errorf("Error setting session data: %s", err))
+		log.Error(err)
 		return err
 	}
 
@@ -104,9 +99,12 @@ func (s *Store) Delete(req *http.Request, id *string) {
 		sessionID = *id
 	}
 
-	cache := s.getRedisClientFromCache()
+	cache, err := initCache()
+	if err != nil {
+		log.InfoR(req, err.Error())
+	}
 
-	_, err := cache.connection.Del(sessionID).Result()
+	_, err = cache.connection.Del(sessionID).Result()
 
 	if err != nil {
 		log.InfoR(req, err.Error())
@@ -162,8 +160,8 @@ func (s *Store) setupExpiration() error {
 	return nil
 }
 
-// validateStore will be called to authenticate the session store
-func (s *Store) validateStore() error {
+// validateSession will be called to authenticate the session store
+func (s *Store) validateSession() error {
 
 	if s.ID == "" {
 		if err := s.regenerateID(); err != nil {
@@ -232,18 +230,24 @@ func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookie
 	}
 }
 
-//getRedisClientFromCache will construct a new Cache and invoke getRedisClient.
-func (s *Store) getRedisClientFromCache() *Cache {
+//init will construct a new Cache and invoke setRedisClient.
+func initCache() (*Cache, error) {
 	cache := &Cache{}
-	cache.getRedisClient()
+	if err := cache.setRedisClient(); err != nil {
+		return nil, err
+	}
 
-	return cache
+	return cache, nil
 }
 
 //getStoredSession will get the session from the Cache, and validate it.
 //If it is invalid, it will return an error.
 func (s *Store) getStoredSession(req *http.Request) ([]byte, error) {
-	cache := s.getRedisClientFromCache()
+	cache, err := initCache()
+	if err != nil {
+		return nil, err
+	}
+
 	storedSession := cache.getSession(s.ID)
 
 	if len(storedSession) == 0 {
