@@ -21,6 +21,7 @@ The library is built using the following commands:
 Note: this library is not a standalone service, and can only be used within services or other libraries.
 
 ## Environment Variables
+
 Key | Description | Scope | Mandatory | Default
 ----|-------------|-------|-----------|--------
 COOKIE_SECRET | The shared secret used in validating/calculating the session cookie signature | State | X |
