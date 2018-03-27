@@ -2,7 +2,6 @@
 Package state contains the go implementation for storing and loading the Session
 from the cache.
 */
-
 package state
 
 import (
@@ -194,7 +193,7 @@ func (s *Store) validateStore() error {
 	}
 
 	if s.Data == nil {
-		return errors.New("No session data to store!")
+		return errors.New("No session data to store")
 	}
 
 	return nil
