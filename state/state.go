@@ -14,7 +14,6 @@ import (
 
 	"github.com/companieshouse/chs.go/log"
 	"github.com/companieshouse/go-session-handler/encoding"
-	"github.com/companieshouse/go-session-handler/exception"
 	redis "gopkg.in/redis.v5"
 )
 
@@ -53,7 +52,12 @@ func (s *Store) Load(req *http.Request) error {
 
 	cookie := s.getCookieFromRequest(req)
 
-	s.validateCookieSignature(req, cookie.Value)
+	err := s.validateCookieSignature(req, cookie.Value)
+
+	if err != nil {
+		return err
+	}
+
 	s.extractAndValidateCookieSignatureParts(req, cookie.Value)
 
 	storedSession, err := s.getStoredSession(req)
@@ -139,7 +143,8 @@ func (s *Store) Clear(req *http.Request) {
 func (s *Store) regenerateID() error {
 	idOctets, err := strconv.Atoi(os.Getenv(idOctetsStr))
 	if err != nil {
-		return exception.EnvironmentVariableMissingException(idOctetsStr)
+		log.Info(err.Error())
+		return err
 	}
 
 	octets := make([]byte, idOctets)
@@ -164,7 +169,8 @@ func (s *Store) setupExpiration() error {
 
 	expirationPeriod, err := strconv.ParseUint(os.Getenv(defaultExpiration), 0, 64)
 	if err != nil {
-		return exception.EnvironmentVariableMissingException(defaultExpiration)
+		log.Info(err.Error())
+		return err
 	}
 
 	s.Expires = now + expirationPeriod
@@ -179,7 +185,7 @@ func (s *Store) setupExpiration() error {
 // validateSession will be called to authenticate the session store
 func (s *Store) validateSession() error {
 
-	if s.ID == "" {
+	if len(s.ID) == 0 {
 		if err := s.regenerateID(); err != nil {
 			return err
 		}
@@ -217,19 +223,21 @@ func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
 
 //validateCookieSignature will try to validate that the length of the Cookie
 //value is not equal to the calculated length of the signature
-func (s *Store) validateCookieSignature(req *http.Request, cookieSignature string) {
+func (s *Store) validateCookieSignature(req *http.Request, cookieSignature string) error {
 
 	cookieValueLength, err := strconv.Atoi(os.Getenv("ID_LENGTH"))
 	if err != nil {
-		log.Error(exception.EnvironmentVariableMissingException("ID_LENGTH"))
+		log.Info(err.Error())
+		return err
 	}
 
 	if len(cookieSignature) != cookieValueLength {
 		log.InfoR(req, "Cookie signature is not the correct length")
 
 		s.Clear(req)
-		return
 	}
+
+	return nil
 }
 
 //extractAndValidateCookieSignatureParts will split the cookieSignature into
