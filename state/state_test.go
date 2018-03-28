@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/companieshouse/go-session-handler/encoding"
 	"github.com/companieshouse/go-session-handler/state/mocks"
 	"github.com/stretchr/testify/assert"
 
@@ -20,12 +19,6 @@ func (s *Store) setStoreData() {
 	}
 
 	s.Data = data
-}
-
-func encodeData(jsonData map[string]interface{}) string {
-	msgpackEncodedData, _ := encoding.EncodeMsgPack(jsonData)
-	b64EncodedData := encoding.EncodeBase64(msgpackEncodedData)
-	return b64EncodedData
 }
 
 func setEnvVariables(variablesToOmit []string) {
@@ -43,10 +36,6 @@ func setEnvVariables(variablesToOmit []string) {
 	for key, value := range m {
 		os.Setenv(key, value)
 	}
-}
-
-func assertEnvVariableMissing(envVar string, err error, t *testing.T) {
-	assert.Equal(t, "Environment variable not set: "+envVar, err.Error())
 }
 
 func clearEnvVariables() {
@@ -74,12 +63,14 @@ func TestValidateStoreDataIsNil(t *testing.T) {
 // that the 'ID_OCTETS' env var is not set
 func TestRegenerateIDOctetsEnvVarMissing(t *testing.T) {
 
+	assert := assert.New(t)
+
 	setEnvVariables([]string{idOctetsStr})
 
 	s := &Store{}
 
 	err := s.regenerateID()
-	assertEnvVariableMissing(idOctetsStr, err, t)
+	assert.NotNil(err)
 
 	clearEnvVariables()
 }
@@ -90,12 +81,14 @@ func TestRegenerateIDOctetsEnvVarMissing(t *testing.T) {
 // the 'DEFAULT_EXPIRATION' env var is not set
 func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 
+	assert := assert.New(t)
+
 	setEnvVariables([]string{defaultExpiration})
 
 	s := &Store{}
 
 	err := s.setupExpiration()
-	assertEnvVariableMissing(defaultExpiration, err, t)
+	assert.NotNil(err)
 
 	clearEnvVariables()
 }
@@ -141,7 +134,7 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 	s := &Store{}
 	s.setStoreData()
 
-	encodedData := encodeData(s.Data)
+	encodedData, _ := s.encodeSessionData()
 
 	c := &Cache{}
 
@@ -151,7 +144,7 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 
 	c.command = command
 
-	err := c.setSession(s)
+	err := c.setSession(command, s, encodedData)
 	assert.NotNil(err)
 }
 
@@ -164,7 +157,7 @@ func TestSetSessionSuccessfulSave(t *testing.T) {
 	s := &Store{}
 	s.setStoreData()
 
-	encodedData := encodeData(s.Data)
+	encodedData, _ := s.encodeSessionData()
 
 	c := &Cache{}
 
@@ -174,6 +167,6 @@ func TestSetSessionSuccessfulSave(t *testing.T) {
 
 	c.command = command
 
-	err := c.setSession(s)
+	err := c.setSession(command, s, encodedData)
 	assert.Nil(err)
 }
