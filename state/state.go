@@ -39,12 +39,16 @@ const signatureStart = (idOctets * 4) / 3
 const signatureLength = 27 //160 bits, base 64 encoded
 const cookieValueLength = signatureStart + signatureLength
 
-const defaultExpiration = "DEFAULT_EXPIRATION"
-const idOctetsStr = "ID_OCTETS"
+const defaultExpirationEnv = "DEFAULT_EXPIRATION"
+const cookieNameEnv = "COOKIE_NAME"
 
 /*
    STORE
 */
+
+func NewStore() *Store {
+	return &Store{}
+}
 
 //Load is used to try and get a session from the cache. If it succeeds it will
 //load the session, otherwise it will return an error.
@@ -141,12 +145,6 @@ func (s *Store) Clear(req *http.Request) {
 
 // regenerateID refreshes the token against the Store struct
 func (s *Store) regenerateID() error {
-	idOctets, err := strconv.Atoi(os.Getenv(idOctetsStr))
-	if err != nil {
-		log.Info(err.Error())
-		return err
-	}
-
 	octets := make([]byte, idOctets)
 
 	if _, err := rand.Read(octets); err != nil {
@@ -167,7 +165,7 @@ func (s *Store) setupExpiration() error {
 
 	now := uint64(time.Now().Unix())
 
-	expirationPeriod, err := strconv.ParseUint(os.Getenv(defaultExpiration), 0, 64)
+	expirationPeriod, err := strconv.ParseUint(os.Getenv(defaultExpirationEnv), 0, 64)
 	if err != nil {
 		log.Info(err.Error())
 		return err
@@ -211,7 +209,7 @@ func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
 	var cookie *http.Cookie
 	var err error
 
-	cookieName := os.Getenv("COOKIE_NAME")
+	cookieName := os.Getenv(cookieNameEnv)
 
 	if cookie, err = req.Cookie(cookieName); err != nil {
 		log.InfoR(req, err.Error())
@@ -225,16 +223,13 @@ func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
 //value is not equal to the calculated length of the signature
 func (s *Store) validateCookieSignature(req *http.Request, cookieSignature string) error {
 
-	cookieValueLength, err := strconv.Atoi(os.Getenv("ID_LENGTH"))
-	if err != nil {
-		log.Info(err.Error())
-		return err
-	}
-
 	if len(cookieSignature) != cookieValueLength {
-		log.InfoR(req, "Cookie signature is not the correct length")
+		err := errors.New("Cookie signature is not the correct length")
+		log.InfoR(req, err.Error())
 
 		s.Clear(req)
+
+		return err
 	}
 
 	return nil
