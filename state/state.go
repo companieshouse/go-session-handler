@@ -249,6 +249,7 @@ func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookie
 //init will construct a new Cache and invoke setRedisClient.
 func initCache() (*Cache, error) {
 	cache := &Cache{}
+
 	if err := cache.setRedisClient(); err != nil {
 		return nil, err
 	}
@@ -327,6 +328,10 @@ type RedisCommand interface {
 	Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 }
 
+func (c *Cache) Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+	return c.connection.Set(key, value, expiration)
+}
+
 // SetRedisClient into the Cache struct
 func (c *Cache) setRedisClient() error {
 	client := redis.NewClient(&redis.Options{
@@ -356,6 +361,7 @@ func (c *Cache) getSession(req *http.Request, id string) (string, error) {
 
 // SetSession will take the valid Store object and save it in Redis
 func (c *Cache) setSession(s *Store) error {
+
 	msgpackEncodedData, err := encoding.EncodeMsgPack(s.Data)
 	if err != nil {
 		return err

@@ -22,6 +22,12 @@ func (s *Store) setStoreData() {
 	s.Data = data
 }
 
+func encodeData(jsonData map[string]interface{}) string {
+	msgpackEncodedData, _ := encoding.EncodeMsgPack(jsonData)
+	b64EncodedData := encoding.EncodeBase64(msgpackEncodedData)
+	return b64EncodedData
+}
+
 func setEnvVariables(variablesToOmit []string) {
 	m := map[string]string{
 		"ID_OCTETS":          "28",
@@ -135,18 +141,39 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 	s := &Store{}
 	s.setStoreData()
 
-	unencodedData := s.Data
-	msgpackEncodedData, _ := encoding.EncodeMsgPack(unencodedData)
-	b64EncodedData := encoding.EncodeBase64(msgpackEncodedData)
+	encodedData := encodeData(s.Data)
 
 	c := &Cache{}
 
 	command := &mocks.RedisCommand{}
-	command.On("Set", "", b64EncodedData, time.Duration(0)).
+	command.On("Set", "", encodedData, time.Duration(0)).
 		Return(redis.NewStatusResult("", errors.New("Unsuccessful save")))
 
 	c.command = command
 
 	err := c.setSession(s)
 	assert.NotNil(err)
+}
+
+// TestSetSessionSuccessfulSave - Verify happy path is followed if session is
+// saved in Redis
+func TestSetSessionSuccessfulSave(t *testing.T) {
+
+	assert := assert.New(t)
+
+	s := &Store{}
+	s.setStoreData()
+
+	encodedData := encodeData(s.Data)
+
+	c := &Cache{}
+
+	command := &mocks.RedisCommand{}
+	command.On("Set", "", encodedData, time.Duration(0)).
+		Return(redis.NewStatusResult("Success", nil))
+
+	c.command = command
+
+	err := c.setSession(s)
+	assert.Nil(err)
 }
