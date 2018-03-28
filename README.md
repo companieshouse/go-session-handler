@@ -15,8 +15,10 @@ In order to build this library locally you will need the following:
 ## Getting started
 
 The library is built using the following commands:
-- `go get`
-- `go build`
+```
+go get
+go build
+```
 
 Note: this library is not a standalone service, and can only be used within services or other libraries.
 
