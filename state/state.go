@@ -103,7 +103,15 @@ func (s *Store) Store() error {
 		return err
 	}
 
-	if err := c.setSession(s); err != nil {
+	encodedData, err := s.encodeSessionData()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	var redisCmd RedisCommand = c
+
+	if err := c.setSession(redisCmd, s, encodedData); err != nil {
 		log.Error(err)
 		return err
 	}
@@ -252,6 +260,7 @@ func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookie
 //init will construct a new Cache and invoke setRedisClient.
 func initCache() (*Cache, error) {
 	cache := &Cache{}
+
 	if err := cache.setRedisClient(); err != nil {
 		return nil, err
 	}
@@ -330,6 +339,10 @@ type RedisCommand interface {
 	Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 }
 
+func (c *Cache) Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+	return c.connection.Set(key, value, expiration)
+}
+
 // SetRedisClient into the Cache struct
 func (c *Cache) setRedisClient() error {
 	client := redis.NewClient(&redis.Options{
@@ -357,18 +370,22 @@ func (c *Cache) getSession(req *http.Request, id string) (string, error) {
 	return storedSession, nil
 }
 
-// SetSession will take the valid Store object and save it in Redis
-func (c *Cache) setSession(s *Store) error {
+// setSession will take the valid Store object and save it in Redis
+func (c *Cache) setSession(redisCmd RedisCommand, s *Store, encodedData string) error {
+
+	var err error
+	_, err = redisCmd.Set(s.ID, encodedData, 0).Result()
+	return err
+}
+
+// encodeSessionData performs the messagepack and base 64 encoding on the
+// session data and returns the result, or an error if one occurs
+func (s *Store) encodeSessionData() (string, error) {
 	msgpackEncodedData, err := encoding.EncodeMsgPack(s.Data)
 	if err != nil {
-		return err
+		return "", err
 	}
+
 	b64EncodedData := encoding.EncodeBase64(msgpackEncodedData)
-
-	_, err = c.command.Set(s.ID, b64EncodedData, 0).Result()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return b64EncodedData, nil
 }

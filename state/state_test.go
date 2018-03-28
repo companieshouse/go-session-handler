@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/companieshouse/go-session-handler/encoding"
 	"github.com/companieshouse/go-session-handler/state/mocks"
 	"github.com/stretchr/testify/assert"
 
@@ -39,10 +38,6 @@ func setEnvVariables(variablesToOmit []string) {
 	}
 }
 
-func assertEnvVariableMissing(envVar string, err error, t *testing.T) {
-	assert.Equal(t, "Environment variable not set: "+envVar, err.Error())
-}
-
 func clearEnvVariables() {
 	os.Clearenv()
 }
@@ -68,12 +63,14 @@ func TestValidateStoreDataIsNil(t *testing.T) {
 // that the 'ID_OCTETS' env var is not set
 func TestRegenerateIDOctetsEnvVarMissing(t *testing.T) {
 
+	assert := assert.New(t)
+
 	setEnvVariables([]string{idOctetsStr})
 
 	s := &Store{}
 
 	err := s.regenerateID()
-	assertEnvVariableMissing(idOctetsStr, err, t)
+	assert.NotNil(err)
 
 	clearEnvVariables()
 }
@@ -84,12 +81,14 @@ func TestRegenerateIDOctetsEnvVarMissing(t *testing.T) {
 // the 'DEFAULT_EXPIRATION' env var is not set
 func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 
+	assert := assert.New(t)
+
 	setEnvVariables([]string{defaultExpiration})
 
 	s := &Store{}
 
 	err := s.setupExpiration()
-	assertEnvVariableMissing(defaultExpiration, err, t)
+	assert.NotNil(err)
 
 	clearEnvVariables()
 }
@@ -135,18 +134,39 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 	s := &Store{}
 	s.setStoreData()
 
-	unencodedData := s.Data
-	msgpackEncodedData, _ := encoding.EncodeMsgPack(unencodedData)
-	b64EncodedData := encoding.EncodeBase64(msgpackEncodedData)
+	encodedData, _ := s.encodeSessionData()
 
 	c := &Cache{}
 
 	command := &mocks.RedisCommand{}
-	command.On("Set", "", b64EncodedData, time.Duration(0)).
+	command.On("Set", "", encodedData, time.Duration(0)).
 		Return(redis.NewStatusResult("", errors.New("Unsuccessful save")))
 
 	c.command = command
 
-	err := c.setSession(s)
+	err := c.setSession(command, s, encodedData)
 	assert.NotNil(err)
+}
+
+// TestSetSessionSuccessfulSave - Verify happy path is followed if session is
+// saved in Redis
+func TestSetSessionSuccessfulSave(t *testing.T) {
+
+	assert := assert.New(t)
+
+	s := &Store{}
+	s.setStoreData()
+
+	encodedData, _ := s.encodeSessionData()
+
+	c := &Cache{}
+
+	command := &mocks.RedisCommand{}
+	command.On("Set", "", encodedData, time.Duration(0)).
+		Return(redis.NewStatusResult("Success", nil))
+
+	c.command = command
+
+	err := c.setSession(command, s, encodedData)
+	assert.Nil(err)
 }
