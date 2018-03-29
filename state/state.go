@@ -41,6 +41,7 @@ const cookieValueLength = signatureStart + signatureLength
 
 const defaultExpirationEnv = "DEFAULT_EXPIRATION"
 const cookieNameEnv = "COOKIE_NAME"
+const cookieSecretEnv = "COOKIE_SECRET"
 
 /*
    STORE
@@ -164,7 +165,8 @@ func (s *Store) regenerateID() error {
 }
 
 func (s *Store) generateSignature() string {
-	return ""
+	sum := encoding.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
+	return encoding.EncodeBase64(sum[:])
 }
 
 // setupExpiration will set the 'Expires' variable against the Store
@@ -228,11 +230,11 @@ func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
 }
 
 //validateCookieSignature will try to validate that the length of the Cookie
-//value is not equal to the calculated length of the signature
+//value is less than the calculated length of the signature
 func (s *Store) validateCookieSignature(req *http.Request, cookieSignature string) error {
 
-	if len(cookieSignature) != cookieValueLength {
-		err := errors.New("Cookie signature is not the correct length")
+	if len(cookieSignature) < cookieValueLength {
+		err := errors.New("Cookie signature is less than the desired cookie length")
 		log.InfoR(req, err.Error())
 
 		s.Clear(req)
