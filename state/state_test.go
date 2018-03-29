@@ -121,12 +121,12 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 	c := &Cache{}
 
 	command := &mocks.RedisCommand{}
-	command.On("Set", "", encodedData, time.Duration(0)).
+	command.On("SetSessionData", "", encodedData, time.Duration(0)).
 		Return(redis.NewStatusResult("", errors.New("Unsuccessful save")))
 
 	c.command = command
 
-	err := c.setSession(command, s, encodedData)
+	err := c.setSession(s, encodedData)
 	assert.NotNil(err)
 }
 
@@ -144,11 +144,11 @@ func TestSetSessionSuccessfulSave(t *testing.T) {
 	c := &Cache{}
 
 	command := &mocks.RedisCommand{}
-	command.On("Set", "", encodedData, time.Duration(0)).
+	command.On("SetSessionData", "", encodedData, time.Duration(0)).
 		Return(redis.NewStatusResult("Success", nil))
 
 	c.command = command
 
-	err := c.setSession(command, s, encodedData)
+	err := c.setSession(s, encodedData)
 	assert.Nil(err)
 }
