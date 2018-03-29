@@ -23,6 +23,7 @@ type Store struct {
 	Expiration uint64
 	Expires    uint64
 	Data       map[string]interface{}
+	Encoder    encoding.EncodingInterface
 }
 
 //Cache is the struct that contains the connection info for retrieving/saving
@@ -93,6 +94,8 @@ func (s *Store) Store() error {
 
 	log.Info("Attempting to store session with the following data: ", s.Data)
 
+	s.initEncoder()
+
 	if err := s.validateSession(); err != nil {
 		log.Error(err)
 		return err
@@ -158,17 +161,13 @@ func (s *Store) regenerateID() error {
 		return err
 	}
 
-	encoder := initEncoder()
-
-	s.ID = encoder.EncodeBase64(octets)
+	s.ID = s.Encoder.EncodeBase64(octets)
 	return nil
 }
 
 func (s *Store) generateSignature() string {
-	encoder := initEncoder()
-
-	sum := encoder.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
-	return encoder.EncodeBase64(sum[:])
+	sum := s.Encoder.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
+	return s.Encoder.EncodeBase64(sum[:])
 }
 
 // setupExpiration will set the 'Expires' variable against the Store
@@ -294,16 +293,14 @@ func (s *Store) getStoredSession(req *http.Request) (string, error) {
 
 //decodeSession will try to base64 decode the session and then msgpack decode it.
 func (s *Store) decodeSession(req *http.Request, session string) (map[string]interface{}, error) {
-	encoder := initEncoder()
-
-	base64DecodedSession, err := encoder.DecodeBase64(session)
+	base64DecodedSession, err := s.Encoder.DecodeBase64(session)
 
 	if err != nil {
 		log.InfoR(req, err.Error())
 		return nil, err
 	}
 
-	msgpackDecodedSession, err := encoder.DecodeMsgPack(base64DecodedSession)
+	msgpackDecodedSession, err := s.Encoder.DecodeMsgPack(base64DecodedSession)
 
 	if err != nil {
 		log.InfoR(req, err.Error())
@@ -390,20 +387,17 @@ func (c *Cache) setSession(s *Store, encodedData string) error {
 // encodeSessionData performs the messagepack and base 64 encoding on the
 // session data and returns the result, or an error if one occurs
 func (s *Store) encodeSessionData() (string, error) {
-	encoder := initEncoder()
 
-	msgpackEncodedData, err := encoder.EncodeMsgPack(s.Data)
+	msgpackEncodedData, err := s.Encoder.EncodeMsgPack(s.Data)
 	if err != nil {
 		return "", err
 	}
 
-	b64EncodedData := encoder.EncodeBase64(msgpackEncodedData)
+	b64EncodedData := s.Encoder.EncodeBase64(msgpackEncodedData)
 	return b64EncodedData, nil
 }
 
-func initEncoder() encoding.Encoder {
-	var encoder encoding.Encoder
-	var encodingInterface encoding.EncodingInterface = encoder
-	encoder.EncodingInterface = encodingInterface
-	return encoder
+func (s *Store) initEncoder() {
+	var encodingInterface encoding.EncodingInterface = encoding.Encoder{}
+	s.Encoder = encodingInterface
 }

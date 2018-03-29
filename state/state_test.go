@@ -2,12 +2,15 @@ package state
 
 import (
 	"errors"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/companieshouse/go-session-handler/state/mocks"
+	mockEncoding "github.com/companieshouse/go-session-handler/encoding/encoding_mocks"
+	mockState "github.com/companieshouse/go-session-handler/state/state_mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	redis "gopkg.in/redis.v5"
 )
@@ -50,7 +53,10 @@ func TestValidateStoreDataIsNil(t *testing.T) {
 	setEnvVariables([]string{})
 	assert := assert.New(t)
 
-	s := &Store{}
+	encodingInterface := &mockEncoding.EncodingInterface{}
+	encodingInterface.On("EncodeBase64", mock.AnythingOfType("[]uint8")).Return("")
+
+	s := &Store{Encoder: encodingInterface}
 	err := s.validateSession()
 	assert.Equal("No session data to store", err.Error())
 
@@ -116,17 +122,15 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 	s := &Store{}
 	s.setStoreData()
 
-	encodedData, _ := s.encodeSessionData()
-
 	c := &Cache{}
 
-	command := &mocks.RedisCommand{}
-	command.On("SetSessionData", "", encodedData, time.Duration(0)).
+	command := &mockState.RedisCommand{}
+	command.On("SetSessionData", "", "", time.Duration(0)).
 		Return(redis.NewStatusResult("", errors.New("Unsuccessful save")))
 
 	c.command = command
 
-	err := c.setSession(s, encodedData)
+	err := c.setSession(s, "")
 	assert.NotNil(err)
 }
 
@@ -139,16 +143,111 @@ func TestSetSessionSuccessfulSave(t *testing.T) {
 	s := &Store{}
 	s.setStoreData()
 
-	encodedData, _ := s.encodeSessionData()
-
 	c := &Cache{}
 
-	command := &mocks.RedisCommand{}
-	command.On("SetSessionData", "", encodedData, time.Duration(0)).
+	command := &mockState.RedisCommand{}
+	command.On("SetSessionData", "", "", time.Duration(0)).
 		Return(redis.NewStatusResult("Success", nil))
 
 	c.command = command
 
-	err := c.setSession(s, encodedData)
+	err := c.setSession(s, "")
+	assert.Nil(err)
+}
+
+// ------------------- Routes Through encodeSessionData() -------------------
+
+// TestEncodeSessionDataMessagePackError - Verify error trapping is enforced if
+// there's an error when messagepack encoding
+func TestEncodeSessionDataMessagePackError(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+	s.setStoreData()
+
+	encodingInterface := &mockEncoding.EncodingInterface{}
+	encodingInterface.On("EncodeMsgPack", s.Data).
+		Return([]uint8{}, errors.New("Error encoding"))
+
+	s.Encoder = encodingInterface
+
+	_, err := s.encodeSessionData()
+
+	assert.NotNil(err)
+}
+
+// TestEncodeSessionDataHappyPath - Verify no errors are thrown when following
+// the 'happy path'
+func TestEncodeSessionDataHappyPath(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+	s.setStoreData()
+
+	encodingInterface := &mockEncoding.EncodingInterface{}
+	encodingInterface.On("EncodeMsgPack", s.Data).Return([]uint8{}, nil)
+	encodingInterface.On("EncodeBase64", []uint8{}).Return("")
+
+	s.Encoder = encodingInterface
+
+	_, err := s.encodeSessionData()
+
+	assert.Nil(err)
+}
+
+// ------------------- Routes Through decodeSession() -------------------
+
+// TestDecodeSessionDataBaseError - Verify error trapping is enforced if
+// there's an error when base64 decoding
+func TestDecodeSessionDataBase64Error(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	encodingInterface := &mockEncoding.EncodingInterface{}
+	encodingInterface.On("DecodeBase64", "").Return([]byte{}, errors.New("Error base 64 decoding"))
+
+	s.Encoder = encodingInterface
+
+	_, err := s.decodeSession(new(http.Request), "")
+
+	assert.NotNil(err)
+}
+
+// TestDecodeSessionDataMessagePackError - Verify error trapping is enforced if
+// there's an error when messagepack decoding
+func TestDecodeSessionDataMessagePackError(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	encodingInterface := &mockEncoding.EncodingInterface{}
+	encodingInterface.On("DecodeBase64", "").Return([]byte{}, nil)
+	encodingInterface.On("DecodeMsgPack", []byte{}).
+		Return(map[string]interface{}{}, errors.New("Error encoding"))
+
+	s.Encoder = encodingInterface
+
+	_, err := s.decodeSession(new(http.Request), "")
+
+	assert.NotNil(err)
+}
+
+// TestDecodeSessionDataHappyPath - Verify no errors are thrown when following
+// the 'happy path'
+func TestDecodeSessionDataHappyPath(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	encodingInterface := &mockEncoding.EncodingInterface{}
+	encodingInterface.On("DecodeBase64", "").Return([]byte{}, nil)
+	encodingInterface.On("DecodeMsgPack", []byte{}).
+		Return(map[string]interface{}{}, nil)
+
+	s.Encoder = encodingInterface
+
+	_, err := s.decodeSession(new(http.Request), "")
+
 	assert.Nil(err)
 }
