@@ -7,7 +7,6 @@ package state
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -158,7 +157,9 @@ func (s *Store) regenerateID() error {
 		return err
 	}
 
-	s.ID = encoding.EncodeBase64(octets)
+	encoder := initEncoder()
+
+	s.ID = encoder.EncodeBase64(octets)
 	return nil
 }
 
@@ -289,14 +290,16 @@ func (s *Store) getStoredSession(req *http.Request) (string, error) {
 
 //decodeSession will try to base64 decode the session and then msgpack decode it.
 func (s *Store) decodeSession(req *http.Request, session string) (map[string]interface{}, error) {
-	base64DecodedSession, err := encoding.DecodeBase64(session)
+	encoder := initEncoder()
+
+	base64DecodedSession, err := encoder.DecodeBase64(session)
 
 	if err != nil {
 		log.InfoR(req, err.Error())
 		return nil, err
 	}
 
-	msgpackDecodedSession, err := encoding.DecodeMsgPack(base64DecodedSession)
+	msgpackDecodedSession, err := encoder.DecodeMsgPack(base64DecodedSession)
 
 	if err != nil {
 		log.InfoR(req, err.Error())
@@ -376,9 +379,6 @@ func (c *Cache) getSession(req *http.Request, id string) (string, error) {
 func (c *Cache) setSession(s *Store, encodedData string) error {
 
 	var err error
-	if c.command == nil {
-		fmt.Println("HERE!")
-	}
 	_, err = c.command.SetSessionData(s.ID, encodedData, 0).Result()
 	return err
 }
@@ -386,11 +386,20 @@ func (c *Cache) setSession(s *Store, encodedData string) error {
 // encodeSessionData performs the messagepack and base 64 encoding on the
 // session data and returns the result, or an error if one occurs
 func (s *Store) encodeSessionData() (string, error) {
-	msgpackEncodedData, err := encoding.EncodeMsgPack(s.Data)
+	encoder := initEncoder()
+
+	msgpackEncodedData, err := encoder.EncodeMsgPack(s.Data)
 	if err != nil {
 		return "", err
 	}
 
-	b64EncodedData := encoding.EncodeBase64(msgpackEncodedData)
+	b64EncodedData := encoder.EncodeBase64(msgpackEncodedData)
 	return b64EncodedData, nil
+}
+
+func initEncoder() encoding.Encode {
+	var encoder encoding.Encode
+	var encodingInterface encoding.EncodingInterface = encoder
+	encoder.EncodingInterface = encodingInterface
+	return encoder
 }
