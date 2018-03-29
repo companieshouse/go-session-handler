@@ -165,8 +165,10 @@ func (s *Store) regenerateID() error {
 }
 
 func (s *Store) generateSignature() string {
-	sum := encoding.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
-	return encoding.EncodeBase64(sum[:])
+	encoder := initEncoder()
+
+	sum := encoder.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
+	return encoder.EncodeBase64(sum[:])
 }
 
 // setupExpiration will set the 'Expires' variable against the Store
@@ -399,8 +401,8 @@ func (s *Store) encodeSessionData() (string, error) {
 	return b64EncodedData, nil
 }
 
-func initEncoder() encoding.Encode {
-	var encoder encoding.Encode
+func initEncoder() encoding.Encoder {
+	var encoder encoding.Encoder
 	var encodingInterface encoding.EncodingInterface = encoder
 	encoder.EncodingInterface = encodingInterface
 	return encoder
