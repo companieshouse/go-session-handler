@@ -57,24 +57,6 @@ func TestValidateStoreDataIsNil(t *testing.T) {
 	clearEnvVariables()
 }
 
-// ------------------- Routes Through regenerateID() -------------------
-
-// TestRegenerateIDOctetsEnvVarMissing - Verify an error is thrown in the event
-// that the 'ID_OCTETS' env var is not set
-func TestRegenerateIDOctetsEnvVarMissing(t *testing.T) {
-
-	assert := assert.New(t)
-
-	setEnvVariables([]string{idOctetsStr})
-
-	s := &Store{}
-
-	err := s.regenerateID()
-	assert.NotNil(err)
-
-	clearEnvVariables()
-}
-
 // ------------------- Routes Through setupExpiration() -------------------
 
 // TestSetupExpirationDefaultPeriodEnvVarMissing - Verify an error is thrown if
@@ -83,7 +65,7 @@ func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 
 	assert := assert.New(t)
 
-	setEnvVariables([]string{defaultExpiration})
+	setEnvVariables([]string{defaultExpirationEnv})
 
 	s := &Store{}
 
@@ -139,12 +121,12 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 	c := &Cache{}
 
 	command := &mocks.RedisCommand{}
-	command.On("Set", "", encodedData, time.Duration(0)).
+	command.On("SetSessionData", "", encodedData, time.Duration(0)).
 		Return(redis.NewStatusResult("", errors.New("Unsuccessful save")))
 
 	c.command = command
 
-	err := c.setSession(command, s, encodedData)
+	err := c.setSession(s, encodedData)
 	assert.NotNil(err)
 }
 
@@ -162,11 +144,11 @@ func TestSetSessionSuccessfulSave(t *testing.T) {
 	c := &Cache{}
 
 	command := &mocks.RedisCommand{}
-	command.On("Set", "", encodedData, time.Duration(0)).
+	command.On("SetSessionData", "", encodedData, time.Duration(0)).
 		Return(redis.NewStatusResult("Success", nil))
 
 	c.command = command
 
-	err := c.setSession(command, s, encodedData)
+	err := c.setSession(s, encodedData)
 	assert.Nil(err)
 }

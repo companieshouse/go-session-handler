@@ -7,6 +7,7 @@ package state
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -110,9 +111,7 @@ func (s *Store) Store() error {
 		return err
 	}
 
-	var redisCmd RedisCommand = c
-
-	if err := c.setSession(redisCmd, s, encodedData); err != nil {
+	if err := c.setSession(s, encodedData); err != nil {
 		log.Error(err)
 		return err
 	}
@@ -263,6 +262,9 @@ func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookie
 func initCache() (*Cache, error) {
 	cache := &Cache{}
 
+	var redisCommand RedisCommand = cache
+	cache.command = redisCommand
+
 	if err := cache.setRedisClient(); err != nil {
 		return nil, err
 	}
@@ -338,10 +340,10 @@ func (s *Store) validateExpiration(req *http.Request) error {
 */
 
 type RedisCommand interface {
-	Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 }
 
-func (c *Cache) Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+func (c *Cache) SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	return c.connection.Set(key, value, expiration)
 }
 
@@ -373,10 +375,13 @@ func (c *Cache) getSession(req *http.Request, id string) (string, error) {
 }
 
 // setSession will take the valid Store object and save it in Redis
-func (c *Cache) setSession(redisCmd RedisCommand, s *Store, encodedData string) error {
+func (c *Cache) setSession(s *Store, encodedData string) error {
 
 	var err error
-	_, err = redisCmd.Set(s.ID, encodedData, 0).Result()
+	if c.command == nil {
+		fmt.Println("HERE!")
+	}
+	_, err = c.command.SetSessionData(s.ID, encodedData, 0).Result()
 	return err
 }
 

@@ -14,7 +14,7 @@ type RedisCommand struct {
 }
 
 // Set provides a mock function with given fields: key, value, expiration
-func (_m *RedisCommand) Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+func (_m *RedisCommand) SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	ret := _m.Called(key, value, expiration)
 
 	var r0 *redis.StatusCmd
