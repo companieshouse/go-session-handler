@@ -2,6 +2,7 @@ package encoding
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/base64"
 
 	"github.com/vmihailenco/msgpack"
@@ -53,4 +54,9 @@ func (e Encode) EncodeMsgPack(data map[string]interface{}) ([]byte, error) {
 	}
 
 	return encBuf.Bytes(), nil
+}
+
+//GenerateSha1Sum generates a sha1 sum for a given []byte.
+func GenerateSha1Sum(sum []byte) [20]byte {
+	return sha1.Sum(sum)
 }
