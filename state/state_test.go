@@ -57,7 +57,7 @@ func TestValidateStoreDataIsNil(t *testing.T) {
 	encodingInterface.On("EncodeBase64", mock.AnythingOfType("[]uint8")).Return("")
 
 	s := &Store{Encoder: encodingInterface}
-	err := s.validateSession()
+	err := s.ValidateSession()
 	assert.Equal("No session data to store", err.Error())
 
 	clearEnvVariables()
@@ -171,7 +171,7 @@ func TestEncodeSessionDataMessagePackError(t *testing.T) {
 
 	s.Encoder = encodingInterface
 
-	_, err := s.encodeSessionData()
+	_, err := s.EncodeSessionData()
 
 	assert.NotNil(err)
 }
@@ -190,7 +190,7 @@ func TestEncodeSessionDataHappyPath(t *testing.T) {
 
 	s.Encoder = encodingInterface
 
-	_, err := s.encodeSessionData()
+	_, err := s.EncodeSessionData()
 
 	assert.Nil(err)
 }
@@ -250,4 +250,42 @@ func TestDecodeSessionDataHappyPath(t *testing.T) {
 	_, err := s.decodeSession(new(http.Request), "")
 
 	assert.Nil(err)
+}
+
+// ------------------- Routes Through Store() -------------------
+
+// TestStoreErrorInValidateStore - Verify error trapping is enforced if
+// there's an error when validating session data
+func TestStoreErrorInValidateStore(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateSession").Return(errors.New("Error validating session"))
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Store()
+
+	assert.NotNil(err)
+}
+
+// TestStoreErrorInEncodeSessionData - Verify error trapping is enforced if
+// there's an error when encoding session data
+func TestStoreErrorInEncodeSessionData(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+	s.setStoreData()
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateSession").Return(nil)
+	sessionHandler.On("EncodeSessionData").Return("", errors.New("Error encoding session data"))
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Store()
+
+	assert.NotNil(err)
 }
