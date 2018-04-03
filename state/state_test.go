@@ -10,7 +10,6 @@ import (
 	mockEncoding "github.com/companieshouse/go-session-handler/encoding/encoding_mocks"
 	mockState "github.com/companieshouse/go-session-handler/state/state_mocks"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	redis "gopkg.in/redis.v5"
 )
@@ -53,12 +52,71 @@ func TestValidateStoreDataIsNil(t *testing.T) {
 	setEnvVariables([]string{})
 	assert := assert.New(t)
 
-	encodingInterface := &mockEncoding.EncodingInterface{}
-	encodingInterface.On("EncodeBase64", mock.AnythingOfType("[]uint8")).Return("")
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("RegenerateID").Return(nil)
+	sessionHandler.On("SetupExpiration").Return(nil)
 
-	s := &Store{Encoder: encodingInterface}
+	s := &Store{SessionHandler: sessionHandler}
+
 	err := s.ValidateSession()
 	assert.Equal("No session data to store", err.Error())
+
+	clearEnvVariables()
+}
+
+// TestValidateStoreHappyPath - Verify no errors are returned from
+// ValidateSession if the happy path is followed
+func TestValidateStoreHappyPath(t *testing.T) {
+
+	setEnvVariables([]string{})
+	assert := assert.New(t)
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("RegenerateID").Return(nil)
+	sessionHandler.On("SetupExpiration").Return(nil)
+
+	s := &Store{SessionHandler: sessionHandler}
+	s.setStoreData()
+
+	err := s.ValidateSession()
+	assert.Nil(err)
+
+	clearEnvVariables()
+}
+
+// TestValidateStoreErrorRegeneratingID - Verify error trapping is enforced if
+// there's an error regenerating an ID
+func TestValidateStoreErrorRegeneratingID(t *testing.T) {
+
+	setEnvVariables([]string{})
+	assert := assert.New(t)
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("RegenerateID").Return(errors.New("Error Regenerating ID"))
+
+	s := &Store{SessionHandler: sessionHandler}
+
+	err := s.ValidateSession()
+	assert.NotNil(err)
+
+	clearEnvVariables()
+}
+
+// TestValidateStoreErrorSettingExpiration - Verify error trapping is enforced
+// if there's an error setting expiration on the store
+func TestValidateStoreErrorSettingExpiration(t *testing.T) {
+
+	setEnvVariables([]string{})
+	assert := assert.New(t)
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("RegenerateID").Return(nil)
+	sessionHandler.On("SetupExpiration").Return(errors.New("Error setting expiration"))
+
+	s := &Store{SessionHandler: sessionHandler}
+
+	err := s.ValidateSession()
+	assert.NotNil(err)
 
 	clearEnvVariables()
 }
@@ -75,7 +133,7 @@ func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 
 	s := &Store{}
 
-	err := s.setupExpiration()
+	err := s.SetupExpiration()
 	assert.NotNil(err)
 
 	clearEnvVariables()
@@ -89,7 +147,7 @@ func TestSetupExpirationDataIsNil(t *testing.T) {
 	setEnvVariables([]string{})
 	s := &Store{}
 
-	_ = s.setupExpiration()
+	_ = s.SetupExpiration()
 	assert.NotZero(s.Expires)
 
 	// Session data remains nil
@@ -106,7 +164,7 @@ func TestSetupExpirationDataNotNil(t *testing.T) {
 	s := &Store{}
 	s.setStoreData()
 
-	_ = s.setupExpiration()
+	_ = s.SetupExpiration()
 	assert.NotZero(s.Expires)
 	assert.Contains(s.Data, "last_access")
 }

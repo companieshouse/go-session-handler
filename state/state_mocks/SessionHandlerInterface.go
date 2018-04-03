@@ -43,6 +43,34 @@ func (_m *SessionHandlerInterface) InitCache() error {
 	return r0
 }
 
+// RegenerateID provides a mock function with given fields:
+func (_m *SessionHandlerInterface) RegenerateID() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetupExpiration provides a mock function with given fields:
+func (_m *SessionHandlerInterface) SetupExpiration() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // ValidateSession provides a mock function with given fields:
 func (_m *SessionHandlerInterface) ValidateSession() error {
 	ret := _m.Called()
