@@ -209,10 +209,17 @@ func (s *Store) SetupExpiration() error {
 
 	now := uint64(time.Now().Unix())
 
-	expirationPeriod, err := strconv.ParseUint(os.Getenv(defaultExpirationEnv), 0, 64)
-	if err != nil {
-		log.Info(err.Error())
-		return err
+	expirationPeriod := s.Expiration
+
+	if expirationPeriod == 0 {
+		expirationPeriod, err := strconv.ParseUint(os.Getenv(defaultExpirationEnv), 0, 64)
+		if err != nil {
+			log.Info(err.Error())
+			return err
+		} else {
+			log.Info("Setting expiration period on session ID: " + s.ID + " to " +
+				string(expirationPeriod))
+		}
 	}
 
 	s.Expires = now + expirationPeriod
@@ -271,7 +278,7 @@ func (s *Store) ValidateCookieSignature(req *http.Request, cookieSignature strin
 		err := errors.New("Cookie signature is less than the desired cookie length")
 		log.InfoR(req, err.Error())
 
-		s.Clear(req)
+		s.SessionHandler.Clear(req)
 
 		return err
 	}
@@ -329,18 +336,13 @@ func (s *Store) ValidateExpiration(req *http.Request) error {
 	s.Expiration = s.Data["expiration"].(uint64)
 	s.Expires = s.Data["expires"].(uint64)
 
-	s.SetupExpiration()
-
-	if s.Expires == 0 && s.Expiration != 0 {
-		err := errors.New("Expires is 0 and Expiration is not 0")
-
-		s.Data = nil
-		return err
+	if s.Expires == uint64(0) {
+		s.SetupExpiration()
 	}
 
 	now := uint64(time.Now().Unix())
 
-	if s.Expires > 0 && s.Expires <= now {
+	if s.Expires <= now {
 		err := errors.New("Store has expired")
 		s.Data = nil
 
