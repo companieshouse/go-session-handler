@@ -23,9 +23,9 @@ type Store struct {
 	Expiration     uint64
 	Expires        uint64
 	Data           map[string]interface{}
-	Encoder        encoding.EncodingInterface
-	SessionHandler SessionHandlerInterface
-	Cache          *Cache
+	encoder        encoding.EncodingInterface
+	sessionHandler SessionHandlerInterface
+	cache          *Cache
 }
 
 //Cache is the struct that contains the connection info for retrieving/saving
@@ -40,6 +40,7 @@ type Cache struct {
 type RedisCommand interface {
 	SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 	SetRedisClient(*redis.Options) error
+	GetSessionData(key string) (string, error)
 }
 
 //SessionHandlerInterface is the interface for the SessionHandler. It is an interface
@@ -49,6 +50,13 @@ type SessionHandlerInterface interface {
 	EncodeSessionData() (string, error)
 	RegenerateID() error
 	SetupExpiration() error
+	SetSession(encodedData string) error
+	ValidateCookieSignature(req *http.Request, cookieSignature string) error
+	GetStoredSession(req *http.Request) (string, error)
+	ExtractAndValidateCookieSignatureParts(req *http.Request, cookieSignature string)
+	DecodeSession(req *http.Request, session string) (map[string]interface{}, error)
+	Clear(req *http.Request)
+	ValidateExpiration(req *http.Request) error
 }
 
 //Multiples of 3 bytes avoids = padding in base64 string
@@ -67,10 +75,11 @@ const cookieSecretEnv = "COOKIE_SECRET"
 */
 
 //NewStore will properly initialise a new Store object.
-func NewStore(cache *Cache) (*Store, error) {
+func NewStore(encoder encoding.EncodingInterface, sessionHandler SessionHandlerInterface, cache *Cache) *Store {
 
-	return &Store{Encoder: encoding.New(),
-		Cache: cache}, nil
+	return &Store{encoder: encoder,
+		sessionHandler: sessionHandler,
+		cache:          cache}
 }
 
 //NewCache will properly initialise a new Cache object.
@@ -79,7 +88,7 @@ func NewCache(connectionInfo *redis.Options, redisCommand RedisCommand) (*Cache,
 
 	cache.command = redisCommand
 
-	if err := cache.SetRedisClient(connectionInfo); err != nil {
+	if err := cache.command.SetRedisClient(connectionInfo); err != nil {
 		return nil, err
 	}
 
@@ -92,21 +101,21 @@ func (s *Store) Load(req *http.Request) error {
 
 	cookie := s.getCookieFromRequest(req)
 
-	err := s.validateCookieSignature(req, cookie.Value)
+	err := s.sessionHandler.ValidateCookieSignature(req, cookie.Value)
 
 	if err != nil {
 		return err
 	}
 
-	s.extractAndValidateCookieSignatureParts(req, cookie.Value)
+	s.sessionHandler.ExtractAndValidateCookieSignatureParts(req, cookie.Value)
 
-	storedSession, err := s.getStoredSession(req)
+	storedSession, err := s.sessionHandler.GetStoredSession(req)
 
 	if err != nil {
 		return err
 	}
 
-	s.Data, err = s.decodeSession(req, storedSession)
+	s.Data, err = s.sessionHandler.DecodeSession(req, storedSession)
 
 	if err != nil {
 		return err
@@ -114,11 +123,14 @@ func (s *Store) Load(req *http.Request) error {
 
 	//Create a new session if the data is nil
 	if s.Data == nil {
-		s.Clear(req)
+		s.sessionHandler.Clear(req)
 		return nil
 	}
 
-	s.validateExpiration(req)
+	err = s.sessionHandler.ValidateExpiration(req)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -128,18 +140,18 @@ func (s *Store) Store() error {
 
 	log.Info("Attempting to store session with the following data: ", s.Data)
 
-	if err := s.SessionHandler.ValidateSession(); err != nil {
+	if err := s.sessionHandler.ValidateSession(); err != nil {
 		log.Error(err)
 		return err
 	}
 
-	encodedData, err := s.SessionHandler.EncodeSessionData()
+	encodedData, err := s.sessionHandler.EncodeSessionData()
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	if err := s.Cache.setSession(s, encodedData); err != nil {
+	if err := s.sessionHandler.SetSession(encodedData); err != nil {
 		log.Error(err)
 		return err
 	}
@@ -159,7 +171,7 @@ func (s *Store) Delete(req *http.Request, id *string) {
 		sessionID = *id
 	}
 
-	_, err := s.Cache.connection.Del(sessionID).Result()
+	_, err := s.cache.connection.Del(sessionID).Result()
 
 	if err != nil {
 		log.InfoR(req, err.Error())
@@ -182,13 +194,13 @@ func (s *Store) RegenerateID() error {
 		return err
 	}
 
-	s.ID = s.Encoder.EncodeBase64(octets)
+	s.ID = s.encoder.EncodeBase64(octets)
 	return nil
 }
 
 func (s *Store) generateSignature() string {
-	sum := s.Encoder.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
-	return s.Encoder.EncodeBase64(sum[:])
+	sum := s.encoder.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
+	return s.encoder.EncodeBase64(sum[:])
 }
 
 // SetupExpiration will set the 'Expires' variable against the Store
@@ -216,13 +228,13 @@ func (s *Store) SetupExpiration() error {
 func (s *Store) ValidateSession() error {
 
 	if len(s.ID) == 0 {
-		if err := s.SessionHandler.RegenerateID(); err != nil {
+		if err := s.sessionHandler.RegenerateID(); err != nil {
 			return err
 		}
 	}
 
 	if s.Expires == 0 {
-		if err := s.SessionHandler.SetupExpiration(); err != nil {
+		if err := s.sessionHandler.SetupExpiration(); err != nil {
 			return err
 		}
 	}
@@ -251,9 +263,9 @@ func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
 	return cookie
 }
 
-//validateCookieSignature will try to validate that the length of the Cookie
+//ValidateCookieSignature will try to validate that the length of the Cookie
 //value is less than the calculated length of the signature
-func (s *Store) validateCookieSignature(req *http.Request, cookieSignature string) error {
+func (s *Store) ValidateCookieSignature(req *http.Request, cookieSignature string) error {
 
 	if len(cookieSignature) < cookieValueLength {
 		err := errors.New("Cookie signature is less than the desired cookie length")
@@ -267,10 +279,10 @@ func (s *Store) validateCookieSignature(req *http.Request, cookieSignature strin
 	return nil
 }
 
-//extractAndValidateCookieSignatureParts will split the cookieSignature into
+//ExtractAndValidateCookieSignatureParts will split the cookieSignature into
 //two parts, and set the first part to s.ID, with the second part being validated
 //against a generated ID.
-func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookieSignature string) {
+func (s *Store) ExtractAndValidateCookieSignatureParts(req *http.Request, cookieSignature string) {
 	s.ID = cookieSignature[0:signatureStart]
 	sig := cookieSignature[signatureStart:len(cookieSignature)]
 
@@ -281,29 +293,29 @@ func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookie
 	}
 }
 
-//getStoredSession will get the session from the Cache, and validate it.
-//If it is invalid, it will return an error.
-func (s *Store) getStoredSession(req *http.Request) (string, error) {
+//GetStoredSession will get the session from the Cache
+func (s *Store) GetStoredSession(req *http.Request) (string, error) {
 
-	storedSession, err := s.Cache.getSession(req, s.ID)
+	storedSession, err := s.cache.command.GetSessionData(s.ID)
 
 	if err != nil {
+		log.InfoR(req, err.Error())
 		return "", err
 	}
 
 	return storedSession, nil
 }
 
-//decodeSession will try to base64 decode the session and then msgpack decode it.
-func (s *Store) decodeSession(req *http.Request, session string) (map[string]interface{}, error) {
-	base64DecodedSession, err := s.Encoder.DecodeBase64(session)
+//DecodeSession will try to base64 decode the session and then msgpack decode it.
+func (s *Store) DecodeSession(req *http.Request, session string) (map[string]interface{}, error) {
+	base64DecodedSession, err := s.encoder.DecodeBase64(session)
 
 	if err != nil {
 		log.InfoR(req, err.Error())
 		return nil, err
 	}
 
-	msgpackDecodedSession, err := s.Encoder.DecodeMsgPack(base64DecodedSession)
+	msgpackDecodedSession, err := s.encoder.DecodeMsgPack(base64DecodedSession)
 
 	if err != nil {
 		log.InfoR(req, err.Error())
@@ -313,7 +325,7 @@ func (s *Store) decodeSession(req *http.Request, session string) (map[string]int
 	return msgpackDecodedSession, nil
 }
 
-func (s *Store) validateExpiration(req *http.Request) error {
+func (s *Store) ValidateExpiration(req *http.Request) error {
 	s.Expiration = s.Data["expiration"].(uint64)
 	s.Expires = s.Data["expires"].(uint64)
 
@@ -348,6 +360,10 @@ func (c *Cache) SetSessionData(key string, value interface{}, expiration time.Du
 	return c.connection.Set(key, value, expiration)
 }
 
+func (c *Cache) GetSessionData(key string) (string, error) {
+	return c.connection.Get(key).Result()
+}
+
 // SetRedisClient into the Cache struct
 func (c *Cache) SetRedisClient(options *redis.Options) error {
 	client := redis.NewClient(options)
@@ -366,22 +382,11 @@ func (c *Cache) SetRedisClient(options *redis.Options) error {
 	return nil
 }
 
-func (c *Cache) getSession(req *http.Request, id string) (string, error) {
-	storedSession, err := c.connection.Get(id).Result()
-
-	if err != nil {
-		log.InfoR(req, err.Error())
-		return "", err
-	}
-
-	return storedSession, nil
-}
-
-// setSession will take the valid Store object and save it in Redis
-func (c *Cache) setSession(s *Store, encodedData string) error {
+// SetSession will take the valid Store object and save it in Redis
+func (s *Store) SetSession(encodedData string) error {
 
 	var err error
-	_, err = c.command.SetSessionData(s.ID, encodedData, 0).Result()
+	_, err = s.cache.command.SetSessionData(s.ID, encodedData, 0).Result()
 	return err
 }
 
@@ -389,16 +394,16 @@ func (c *Cache) setSession(s *Store, encodedData string) error {
 // session data and returns the result, or an error if one occurs
 func (s *Store) EncodeSessionData() (string, error) {
 
-	msgpackEncodedData, err := s.Encoder.EncodeMsgPack(s.Data)
+	msgpackEncodedData, err := s.encoder.EncodeMsgPack(s.Data)
 	if err != nil {
 		return "", err
 	}
 
-	b64EncodedData := s.Encoder.EncodeBase64(msgpackEncodedData)
+	b64EncodedData := s.encoder.EncodeBase64(msgpackEncodedData)
 	return b64EncodedData, nil
 }
 
 func (s *Store) InitSessionHandler() {
 	var sessionHandler SessionHandlerInterface = s
-	s.SessionHandler = sessionHandler
+	s.sessionHandler = sessionHandler
 }
