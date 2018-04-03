@@ -10,6 +10,7 @@ import (
 	mockEncoding "github.com/companieshouse/go-session-handler/encoding/encoding_mocks"
 	mockState "github.com/companieshouse/go-session-handler/state/state_mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	redis "gopkg.in/redis.v5"
 )
@@ -554,4 +555,50 @@ func TestLoadHappyPath(t *testing.T) {
 	err := s.Load(new(http.Request))
 
 	assert.Nil(err)
+}
+
+// ------------------- Routes Through GetStoredSession() -------------------
+
+// TestGetStoredSessionRedisError - Verify that when retrieving a stored session,
+// if there's a Redis error it's trapped and returned
+func TestGetStoredSessionRedisError(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	c := &Cache{}
+
+	command := &mockState.RedisCommand{}
+	command.On("GetSessionData", mock.AnythingOfType("string")).
+		Return("", errors.New("Redis error thrown"))
+
+	c.command = command
+
+	s.Cache = c
+
+	session, err := s.GetStoredSession(new(http.Request))
+	assert.NotNil(err)
+	assert.Equal("", session)
+}
+
+// TestGetStoredSessionHappyPath - Verify that when retrieving a stored session,
+// if the happy path is followed no errors are returned
+func TestGetStoredSessionHappyPath(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	c := &Cache{}
+
+	command := &mockState.RedisCommand{}
+	command.On("GetSessionData", mock.AnythingOfType("string")).
+		Return("Test", nil)
+
+	c.command = command
+
+	s.Cache = c
+
+	session, err := s.GetStoredSession(new(http.Request))
+	assert.Nil(err)
+	assert.Equal("Test", session)
 }

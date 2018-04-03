@@ -37,6 +37,7 @@ type Cache struct {
 
 type RedisCommand interface {
 	SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	GetSessionData(key string) (string, error)
 }
 
 //SessionHandlerInterface is the interface for the SessionHandler. It is an interface
@@ -304,17 +305,13 @@ func (s *Store) InitCache() error {
 	return nil
 }
 
-//GetStoredSession will get the session from the Cache, and validate it.
-//If it is invalid, it will return an error.
+//GetStoredSession will get the session from the Cache
 func (s *Store) GetStoredSession(req *http.Request) (string, error) {
-	err := s.InitCache()
-	if err != nil {
-		return "", err
-	}
 
-	storedSession, err := s.Cache.getSession(req, s.ID)
+	storedSession, err := s.Cache.command.GetSessionData(s.ID)
 
 	if err != nil {
+		log.InfoR(req, err.Error())
 		return "", err
 	}
 
@@ -375,6 +372,10 @@ func (c *Cache) SetSessionData(key string, value interface{}, expiration time.Du
 	return c.connection.Set(key, value, expiration)
 }
 
+func (c *Cache) GetSessionData(key string) (string, error) {
+	return c.connection.Get(key).Result()
+}
+
 // SetRedisClient into the Cache struct
 func (c *Cache) setRedisClient() error {
 	client := redis.NewClient(&redis.Options{
@@ -389,17 +390,6 @@ func (c *Cache) setRedisClient() error {
 
 	c.connection = client
 	return nil
-}
-
-func (c *Cache) getSession(req *http.Request, id string) (string, error) {
-	storedSession, err := c.connection.Get(id).Result()
-
-	if err != nil {
-		log.InfoR(req, err.Error())
-		return "", err
-	}
-
-	return storedSession, nil
 }
 
 // SetSession will take the valid Store object and save it in Redis
