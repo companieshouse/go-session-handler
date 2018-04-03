@@ -20,6 +20,10 @@ type Encoder struct {
 	EncodingInterface EncodingInterface
 }
 
+func New() *Encoder {
+	return &Encoder{}
+}
+
 //DecodeBase64 takes a base64-encoded string and decodes it to a []byte.
 func (e Encoder) DecodeBase64(base64Encoded string) ([]byte, error) {
 	base64Decoded, err := base64.StdEncoding.DecodeString(base64Encoded)

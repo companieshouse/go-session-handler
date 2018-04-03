@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/companieshouse/chs.go/log"
-	. "github.com/companieshouse/go-session-handler/encoding"
+	"github.com/companieshouse/go-session-handler/encoding"
 	redis "gopkg.in/redis.v5"
 )
 
@@ -23,7 +23,7 @@ type Store struct {
 	Expiration     uint64
 	Expires        uint64
 	Data           map[string]interface{}
-	Encoder        EncodingInterface
+	Encoder        encoding.EncodingInterface
 	SessionHandler SessionHandlerInterface
 }
 
@@ -34,6 +34,8 @@ type Cache struct {
 	command    RedisCommand
 }
 
+//SessionHandlerInterface is the interface for the SessionHandler. It is an interface
+//so that it can be mocked for unit tests.
 type SessionHandlerInterface interface {
 	ValidateSession() error
 	EncodeSessionData() (string, error)
@@ -54,8 +56,9 @@ const cookieSecretEnv = "COOKIE_SECRET"
    STORE
 */
 
+//NewStore will properly initialise a new Store object.
 func NewStore() *Store {
-	return &Store{}
+	return &Store{Encoder: encoding.New()}
 }
 
 //Load is used to try and get a session from the cache. If it succeeds it will
@@ -100,7 +103,6 @@ func (s *Store) Store() error {
 
 	log.Info("Attempting to store session with the following data: ", s.Data)
 
-	s.initEncoder()
 	s.initSessionHandler()
 
 	if err := s.SessionHandler.ValidateSession(); err != nil {
@@ -402,11 +404,6 @@ func (s *Store) EncodeSessionData() (string, error) {
 
 	b64EncodedData := s.Encoder.EncodeBase64(msgpackEncodedData)
 	return b64EncodedData, nil
-}
-
-func (s *Store) initEncoder() {
-	var encodingInterface EncodingInterface = Encoder{}
-	s.Encoder = encodingInterface
 }
 
 func (s *Store) initSessionHandler() {
