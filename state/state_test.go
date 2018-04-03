@@ -271,7 +271,7 @@ func TestDecodeSessionDataBase64Error(t *testing.T) {
 
 	s.Encoder = encodingInterface
 
-	_, err := s.decodeSession(new(http.Request), "")
+	_, err := s.DecodeSession(new(http.Request), "")
 
 	assert.NotNil(err)
 }
@@ -290,7 +290,7 @@ func TestDecodeSessionDataMessagePackError(t *testing.T) {
 
 	s.Encoder = encodingInterface
 
-	_, err := s.decodeSession(new(http.Request), "")
+	_, err := s.DecodeSession(new(http.Request), "")
 
 	assert.NotNil(err)
 }
@@ -309,7 +309,7 @@ func TestDecodeSessionDataHappyPath(t *testing.T) {
 
 	s.Encoder = encodingInterface
 
-	_, err := s.decodeSession(new(http.Request), "")
+	_, err := s.DecodeSession(new(http.Request), "")
 
 	assert.Nil(err)
 }
@@ -426,4 +426,132 @@ func TestNewStore(t *testing.T) {
 	assert.NotNil(s.Encoder)
 	assert.NotNil(s.SessionHandler)
 	assert.NotNil(s.Cache)
+}
+
+// ------------------- Routes Through Load() -------------------
+
+// TestLoadErrorInValidateCookieSignature - Verify that error trapping is enforced
+// when validating cookie signature on load
+func TestLoadErrorInValidateCookieSignature(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").
+		Return(errors.New("Error validating cookie signature"))
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Load(new(http.Request))
+
+	assert.NotNil(err)
+}
+
+// TestLoadErrorInGetStoredSession - Verify that error trapping is enforced
+// if there's an error when retrieving the stored session
+func TestLoadErrorInGetStoredSession(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
+	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
+	sessionHandler.On("GetStoredSession", new(http.Request)).Return("",
+		errors.New("Error retrieving stored session"))
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Load(new(http.Request))
+
+	assert.NotNil(err)
+}
+
+// TestLoadErrorInDecodeSession - Verify that error trapping is enforced
+// if there's an error when decoding session data
+func TestLoadErrorInDecodeSession(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
+	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
+	sessionHandler.On("GetStoredSession", new(http.Request)).Return("", nil)
+	sessionHandler.On("DecodeSession", new(http.Request), "").
+		Return(nil, errors.New("Error decoding session"))
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Load(new(http.Request))
+
+	assert.NotNil(err)
+}
+
+// TestLoadDecodedSessionIsNil - Verify that if decoded session data is nil,
+// Clear is called on the store
+func TestLoadDecodedSessionIsNil(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
+	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
+	sessionHandler.On("GetStoredSession", new(http.Request)).Return("", nil)
+	sessionHandler.On("DecodeSession", new(http.Request), "").Return(nil, nil)
+	sessionHandler.On("Clear", new(http.Request)).Return()
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Load(new(http.Request))
+
+	assert.Nil(err)
+	sessionHandler.AssertCalled(t, "Clear", new(http.Request))
+}
+
+// TestLoadErrorInValidateExpiration - Verify that error trapping is enforced if
+// there's an issue in ValidateExpiration
+func TestLoadErrorInValidateExpiration(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
+	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
+	sessionHandler.On("GetStoredSession", new(http.Request)).Return("", nil)
+	sessionHandler.On("DecodeSession", new(http.Request), "").
+		Return(map[string]interface{}{"Test": "Hello, World!"}, nil)
+	sessionHandler.On("ValidateExpiration", new(http.Request)).
+		Return(errors.New("Error validating expiration"))
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Load(new(http.Request))
+
+	assert.NotNil(err)
+}
+
+// TestLoadHappyPath - Verify that no errors are returned if the Load
+// 'happy path' is followed
+func TestLoadHappyPath(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
+	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
+	sessionHandler.On("GetStoredSession", new(http.Request)).Return("", nil)
+	sessionHandler.On("DecodeSession", new(http.Request), "").
+		Return(map[string]interface{}{"Test": "Hello, World!"}, nil)
+	sessionHandler.On("ValidateExpiration", new(http.Request)).Return(nil)
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Load(new(http.Request))
+
+	assert.Nil(err)
 }

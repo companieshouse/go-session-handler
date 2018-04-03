@@ -48,6 +48,12 @@ type SessionHandlerInterface interface {
 	RegenerateID() error
 	SetupExpiration() error
 	SetSession(encodedData string) error
+	ValidateCookieSignature(req *http.Request, cookieSignature string) error
+	GetStoredSession(req *http.Request) (string, error)
+	ExtractAndValidateCookieSignatureParts(req *http.Request, cookieSignature string)
+	DecodeSession(req *http.Request, session string) (map[string]interface{}, error)
+	Clear(req *http.Request)
+	ValidateExpiration(req *http.Request) error
 }
 
 //Multiples of 3 bytes avoids = padding in base64 string
@@ -79,21 +85,21 @@ func (s *Store) Load(req *http.Request) error {
 
 	cookie := s.getCookieFromRequest(req)
 
-	err := s.validateCookieSignature(req, cookie.Value)
+	err := s.SessionHandler.ValidateCookieSignature(req, cookie.Value)
 
 	if err != nil {
 		return err
 	}
 
-	s.extractAndValidateCookieSignatureParts(req, cookie.Value)
+	s.SessionHandler.ExtractAndValidateCookieSignatureParts(req, cookie.Value)
 
-	storedSession, err := s.getStoredSession(req)
+	storedSession, err := s.SessionHandler.GetStoredSession(req)
 
 	if err != nil {
 		return err
 	}
 
-	s.Data, err = s.decodeSession(req, storedSession)
+	s.Data, err = s.SessionHandler.DecodeSession(req, storedSession)
 
 	if err != nil {
 		return err
@@ -101,11 +107,14 @@ func (s *Store) Load(req *http.Request) error {
 
 	//Create a new session if the data is nil
 	if s.Data == nil {
-		s.Clear(req)
+		s.SessionHandler.Clear(req)
 		return nil
 	}
 
-	s.validateExpiration(req)
+	err = s.SessionHandler.ValidateExpiration(req)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -249,9 +258,9 @@ func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
 	return cookie
 }
 
-//validateCookieSignature will try to validate that the length of the Cookie
+//ValidateCookieSignature will try to validate that the length of the Cookie
 //value is less than the calculated length of the signature
-func (s *Store) validateCookieSignature(req *http.Request, cookieSignature string) error {
+func (s *Store) ValidateCookieSignature(req *http.Request, cookieSignature string) error {
 
 	if len(cookieSignature) < cookieValueLength {
 		err := errors.New("Cookie signature is less than the desired cookie length")
@@ -265,10 +274,10 @@ func (s *Store) validateCookieSignature(req *http.Request, cookieSignature strin
 	return nil
 }
 
-//extractAndValidateCookieSignatureParts will split the cookieSignature into
+//ExtractAndValidateCookieSignatureParts will split the cookieSignature into
 //two parts, and set the first part to s.ID, with the second part being validated
 //against a generated ID.
-func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookieSignature string) {
+func (s *Store) ExtractAndValidateCookieSignatureParts(req *http.Request, cookieSignature string) {
 	s.ID = cookieSignature[0:signatureStart]
 	sig := cookieSignature[signatureStart:len(cookieSignature)]
 
@@ -295,9 +304,9 @@ func (s *Store) InitCache() error {
 	return nil
 }
 
-//getStoredSession will get the session from the Cache, and validate it.
+//GetStoredSession will get the session from the Cache, and validate it.
 //If it is invalid, it will return an error.
-func (s *Store) getStoredSession(req *http.Request) (string, error) {
+func (s *Store) GetStoredSession(req *http.Request) (string, error) {
 	err := s.InitCache()
 	if err != nil {
 		return "", err
@@ -312,8 +321,8 @@ func (s *Store) getStoredSession(req *http.Request) (string, error) {
 	return storedSession, nil
 }
 
-//decodeSession will try to base64 decode the session and then msgpack decode it.
-func (s *Store) decodeSession(req *http.Request, session string) (map[string]interface{}, error) {
+//DecodeSession will try to base64 decode the session and then msgpack decode it.
+func (s *Store) DecodeSession(req *http.Request, session string) (map[string]interface{}, error) {
 	base64DecodedSession, err := s.Encoder.DecodeBase64(session)
 
 	if err != nil {
@@ -331,7 +340,7 @@ func (s *Store) decodeSession(req *http.Request, session string) (map[string]int
 	return msgpackDecodedSession, nil
 }
 
-func (s *Store) validateExpiration(req *http.Request) error {
+func (s *Store) ValidateExpiration(req *http.Request) error {
 	s.Expiration = s.Data["expiration"].(uint64)
 	s.Expires = s.Data["expires"].(uint64)
 
