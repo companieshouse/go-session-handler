@@ -271,6 +271,25 @@ func TestStoreErrorInValidateStore(t *testing.T) {
 	assert.NotNil(err)
 }
 
+// TestStoreErrorInInitCache - Verify error trapping is enforced if
+// there's an error when initiating a cache
+func TestStoreErrorInInitCache(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+	s.setStoreData()
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateSession").Return(nil)
+	sessionHandler.On("InitCache").Return(errors.New("Error initiating cache"))
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Store()
+
+	assert.NotNil(err)
+}
+
 // TestStoreErrorInEncodeSessionData - Verify error trapping is enforced if
 // there's an error when encoding session data
 func TestStoreErrorInEncodeSessionData(t *testing.T) {
@@ -281,6 +300,7 @@ func TestStoreErrorInEncodeSessionData(t *testing.T) {
 
 	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateSession").Return(nil)
+	sessionHandler.On("InitCache").Return(nil)
 	sessionHandler.On("EncodeSessionData").Return("", errors.New("Error encoding session data"))
 
 	s.SessionHandler = sessionHandler

@@ -25,6 +25,7 @@ type Store struct {
 	Data           map[string]interface{}
 	Encoder        EncodingInterface
 	SessionHandler SessionHandlerInterface
+	Cache          *Cache
 }
 
 //Cache is the struct that contains the connection info for retrieving/saving
@@ -34,8 +35,13 @@ type Cache struct {
 	command    RedisCommand
 }
 
+type RedisCommand interface {
+	SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+}
+
 type SessionHandlerInterface interface {
 	ValidateSession() error
+	InitCache() error
 	EncodeSessionData() (string, error)
 }
 
@@ -101,14 +107,14 @@ func (s *Store) Store() error {
 	log.Info("Attempting to store session with the following data: ", s.Data)
 
 	s.initEncoder()
-	s.initSessionHandler()
+	//s.initSessionHandler()
 
 	if err := s.SessionHandler.ValidateSession(); err != nil {
 		log.Error(err)
 		return err
 	}
 
-	c, err := s.InitCache()
+	err := s.SessionHandler.InitCache()
 	if err != nil {
 		log.Error(err)
 		return err
@@ -120,7 +126,7 @@ func (s *Store) Store() error {
 		return err
 	}
 
-	if err := c.setSession(s, encodedData); err != nil {
+	if err := s.Cache.setSession(s, encodedData); err != nil {
 		log.Error(err)
 		return err
 	}
@@ -140,12 +146,12 @@ func (s *Store) Delete(req *http.Request, id *string) {
 		sessionID = *id
 	}
 
-	cache, err := s.InitCache()
+	err := s.InitCache()
 	if err != nil {
 		log.InfoR(req, err.Error())
 	}
 
-	_, err = cache.connection.Del(sessionID).Result()
+	_, err = s.Cache.connection.Del(sessionID).Result()
 
 	if err != nil {
 		log.InfoR(req, err.Error())
@@ -268,28 +274,30 @@ func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookie
 }
 
 //init will construct a new Cache and invoke setRedisClient.
-func (s *Store) InitCache() (*Cache, error) {
+func (s *Store) InitCache() error {
 	cache := &Cache{}
 
 	var redisCommand RedisCommand = cache
 	cache.command = redisCommand
 
 	if err := cache.setRedisClient(); err != nil {
-		return nil, err
+		return err
 	}
 
-	return cache, nil
+	s.Cache = cache
+
+	return nil
 }
 
 //getStoredSession will get the session from the Cache, and validate it.
 //If it is invalid, it will return an error.
 func (s *Store) getStoredSession(req *http.Request) (string, error) {
-	cache, err := s.InitCache()
+	err := s.InitCache()
 	if err != nil {
 		return "", err
 	}
 
-	storedSession, err := cache.getSession(req, s.ID)
+	storedSession, err := s.Cache.getSession(req, s.ID)
 
 	if err != nil {
 		return "", err
@@ -348,10 +356,6 @@ func (s *Store) validateExpiration(req *http.Request) error {
    CACHE
 */
 
-type RedisCommand interface {
-	SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
-}
-
 func (c *Cache) SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	return c.connection.Set(key, value, expiration)
 }
@@ -409,7 +413,7 @@ func (s *Store) initEncoder() {
 	s.Encoder = encodingInterface
 }
 
-func (s *Store) initSessionHandler() {
+func (s *Store) InitSessionHandler() {
 	var sessionHandler SessionHandlerInterface = s
 	s.SessionHandler = sessionHandler
 }
