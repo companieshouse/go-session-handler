@@ -45,6 +45,8 @@ type SessionHandlerInterface interface {
 	ValidateSession() error
 	InitCache() error
 	EncodeSessionData() (string, error)
+	RegenerateID() error
+	SetupExpiration() error
 }
 
 //Multiples of 3 bytes avoids = padding in base64 string
@@ -163,11 +165,11 @@ func (s *Store) Delete(req *http.Request, id *string) {
 func (s *Store) Clear(req *http.Request) {
 	s.Data = nil
 	s.Delete(req, nil) //Delete the previously stored Session
-	s.regenerateID()
+	s.RegenerateID()
 }
 
-// regenerateID refreshes the token against the Store struct
-func (s *Store) regenerateID() error {
+// RegenerateID refreshes the token against the Store struct
+func (s *Store) RegenerateID() error {
 	octets := make([]byte, idOctets)
 
 	if _, err := rand.Read(octets); err != nil {
@@ -183,9 +185,9 @@ func (s *Store) generateSignature() string {
 	return s.Encoder.EncodeBase64(sum[:])
 }
 
-// setupExpiration will set the 'Expires' variable against the Store
+// SetupExpiration will set the 'Expires' variable against the Store
 // This should only be called if an expiration is not already set
-func (s *Store) setupExpiration() error {
+func (s *Store) SetupExpiration() error {
 
 	now := uint64(time.Now().Unix())
 
@@ -208,13 +210,13 @@ func (s *Store) setupExpiration() error {
 func (s *Store) ValidateSession() error {
 
 	if len(s.ID) == 0 {
-		if err := s.regenerateID(); err != nil {
+		if err := s.SessionHandler.RegenerateID(); err != nil {
 			return err
 		}
 	}
 
 	if s.Expires == 0 {
-		if err := s.setupExpiration(); err != nil {
+		if err := s.SessionHandler.SetupExpiration(); err != nil {
 			return err
 		}
 	}
@@ -329,7 +331,7 @@ func (s *Store) validateExpiration(req *http.Request) error {
 	s.Expiration = s.Data["expiration"].(uint64)
 	s.Expires = s.Data["expires"].(uint64)
 
-	s.setupExpiration()
+	s.SetupExpiration()
 
 	if s.Expires == 0 && s.Expiration != 0 {
 		err := errors.New("Expires is 0 and Expiration is not 0")
