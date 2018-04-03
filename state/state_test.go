@@ -612,12 +612,13 @@ func TestValidateExpirationHasExpired(t *testing.T) {
 
 	assert := assert.New(t)
 
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
+
 	now := uint64(time.Now().Unix())
 	expires := now - uint64(60)
 
 	data := map[string]interface{}{"expires": expires, "expiration": uint64(60)}
-	s := &Store{}
-
 	s.Data = data
 
 	err := s.ValidateExpiration(new(http.Request))
@@ -631,11 +632,13 @@ func TestValidateExpirationHappyPath(t *testing.T) {
 
 	assert := assert.New(t)
 
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
+
 	now := uint64(time.Now().Unix())
 	expires := now + uint64(60)
 
 	data := map[string]interface{}{"expires": expires, "expiration": uint64(60)}
-	s := &Store{}
 
 	s.Data = data
 
@@ -653,12 +656,10 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("Clear", new(http.Request)).Return()
-
-	s.sessionHandler = sessionHandler
 
 	err := s.ValidateCookieSignature(new(http.Request), "")
 
@@ -671,7 +672,8 @@ func TestValidateCookieSignatureHappyPath(t *testing.T) {
 
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
 	err := s.ValidateCookieSignature(new(http.Request), strings.Repeat("a", cookieValueLength))
 
@@ -684,14 +686,33 @@ func TestValidateCookieSignatureHappyPath(t *testing.T) {
 // don't match, we clear the session data
 func TestValidateCookieSignatureParts(t *testing.T) {
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("GenerateSignature").Return("abc")
 	sessionHandler.On("Clear", new(http.Request)).Return()
 
-	s.sessionHandler = sessionHandler
-
 	s.ExtractAndValidateCookieSignatureParts(new(http.Request),
 		strings.Repeat("a", signatureStart))
+}
+
+// --------- Routes Through Delete() ---------
+
+// TestDelete - Verify that errors are logged if there's a Redis connection
+// error whilst deleting session data
+func TestDelete(t *testing.T) {
+
+	encoder, sessionHandler, cache := getMockStoreObjects()
+
+	command := &mockState.RedisCommand{}
+	command.On("DeleteSessionData", mock.AnythingOfType("string")).
+		Return(errors.New("Error deleting session data"))
+
+	cache.command = command
+
+	s := NewStore(encoder, sessionHandler, cache)
+
+	var testId string = "test"
+
+	s.Delete(new(http.Request), &testId)
 }

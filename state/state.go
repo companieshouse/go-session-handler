@@ -40,6 +40,7 @@ type Cache struct {
 type RedisCommand interface {
 	SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 	SetRedisClient(*redis.Options) error
+	DeleteSessionData(key string) error
 	GetSessionData(key string) (string, error)
 }
 
@@ -172,7 +173,7 @@ func (s *Store) Delete(req *http.Request, id *string) {
 		sessionID = *id
 	}
 
-	_, err := s.cache.connection.Del(sessionID).Result()
+	err := s.cache.command.DeleteSessionData(sessionID)
 
 	if err != nil {
 		log.InfoR(req, err.Error())
@@ -365,6 +366,11 @@ func (c *Cache) SetSessionData(key string, value interface{}, expiration time.Du
 
 func (c *Cache) GetSessionData(key string) (string, error) {
 	return c.connection.Get(key).Result()
+}
+
+func (c *Cache) DeleteSessionData(key string) error {
+	_, err := c.connection.Del(key).Result()
+	return err
 }
 
 // SetRedisClient into the Cache struct
