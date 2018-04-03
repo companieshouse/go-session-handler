@@ -47,6 +47,7 @@ type SessionHandlerInterface interface {
 	EncodeSessionData() (string, error)
 	RegenerateID() error
 	SetupExpiration() error
+	SetSession(encodedData string) error
 }
 
 //Multiples of 3 bytes avoids = padding in base64 string
@@ -66,7 +67,10 @@ const cookieSecretEnv = "COOKIE_SECRET"
 
 //NewStore will properly initialise a new Store object.
 func NewStore() *Store {
-	return &Store{Encoder: encoding.New()}
+	s := &Store{Encoder: encoding.New(), Cache: &Cache{}}
+	s.InitSessionHandler()
+
+	return s
 }
 
 //Load is used to try and get a session from the cache. If it succeeds it will
@@ -128,7 +132,7 @@ func (s *Store) Store() error {
 		return err
 	}
 
-	if err := s.Cache.setSession(s, encodedData); err != nil {
+	if err := s.SessionHandler.SetSession(encodedData); err != nil {
 		log.Error(err)
 		return err
 	}
@@ -389,11 +393,11 @@ func (c *Cache) getSession(req *http.Request, id string) (string, error) {
 	return storedSession, nil
 }
 
-// setSession will take the valid Store object and save it in Redis
-func (c *Cache) setSession(s *Store, encodedData string) error {
+// SetSession will take the valid Store object and save it in Redis
+func (s *Store) SetSession(encodedData string) error {
 
 	var err error
-	_, err = c.command.SetSessionData(s.ID, encodedData, 0).Result()
+	_, err = s.Cache.command.SetSessionData(s.ID, encodedData, 0).Result()
 	return err
 }
 

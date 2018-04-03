@@ -57,6 +57,20 @@ func (_m *SessionHandlerInterface) RegenerateID() error {
 	return r0
 }
 
+// SetSession provides a mock function with given fields: encodedData
+func (_m *SessionHandlerInterface) SetSession(encodedData string) error {
+	ret := _m.Called(encodedData)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(encodedData)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SetupExpiration provides a mock function with given fields:
 func (_m *SessionHandlerInterface) SetupExpiration() error {
 	ret := _m.Called()

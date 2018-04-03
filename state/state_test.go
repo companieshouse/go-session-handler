@@ -169,7 +169,7 @@ func TestSetupExpirationDataNotNil(t *testing.T) {
 	assert.Contains(s.Data, "last_access")
 }
 
-// ------------------- Routes Through setSession() -------------------
+// ------------------- Routes Through SetSession() -------------------
 
 // TestSetSessionErrorOnSave - Verify error trapping if any errors are returned
 // from redis
@@ -188,7 +188,9 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 
 	c.command = command
 
-	err := c.setSession(s, "")
+	s.Cache = c
+
+	err := s.SetSession("")
 	assert.NotNil(err)
 }
 
@@ -209,7 +211,9 @@ func TestSetSessionSuccessfulSave(t *testing.T) {
 
 	c.command = command
 
-	err := c.setSession(s, "")
+	s.Cache = c
+
+	err := s.SetSession("")
 	assert.Nil(err)
 }
 
@@ -366,4 +370,60 @@ func TestStoreErrorInEncodeSessionData(t *testing.T) {
 	err := s.Store()
 
 	assert.NotNil(err)
+}
+
+// TestStoreErrorInSetSession - Verify error trapping is enforced if
+// there's an error when setting session data
+func TestStoreErrorInSetSession(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+	s.setStoreData()
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateSession").Return(nil)
+	sessionHandler.On("InitCache").Return(nil)
+	sessionHandler.On("EncodeSessionData").Return("", nil)
+	sessionHandler.On("SetSession", "").Return(errors.New("Error setting session"))
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Store()
+
+	assert.NotNil(err)
+}
+
+// TestStoreHappyPath - Verify no errors are returned if when storing data the
+// happy path is followed
+func TestStoreHappyPath(t *testing.T) {
+	assert := assert.New(t)
+
+	s := &Store{}
+	s.setStoreData()
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("ValidateSession").Return(nil)
+	sessionHandler.On("InitCache").Return(nil)
+	sessionHandler.On("EncodeSessionData").Return("", nil)
+	sessionHandler.On("SetSession", "").Return(nil)
+
+	s.SessionHandler = sessionHandler
+
+	err := s.Store()
+
+	assert.Nil(err)
+}
+
+// ------------------- Routes Through NewStore() -------------------
+
+// TestNewStore - Verify that when initiating a new Store struct, each of the
+// components are also initialised
+func TestNewStore(t *testing.T) {
+	assert := assert.New(t)
+
+	s := NewStore()
+
+	assert.NotNil(s.Encoder)
+	assert.NotNil(s.SessionHandler)
+	assert.NotNil(s.Cache)
 }
