@@ -35,15 +35,17 @@ type Cache struct {
 	command    RedisCommand
 }
 
+//RedisCommand is the interface used in the Cache. It is an interface so that it
+//can be mocked for unit tests.
 type RedisCommand interface {
 	SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	SetRedisClient(*redis.Options) error
 }
 
 //SessionHandlerInterface is the interface for the SessionHandler. It is an interface
 //so that it can be mocked for unit tests.
 type SessionHandlerInterface interface {
 	ValidateSession() error
-	InitCache() error
 	EncodeSessionData() (string, error)
 	RegenerateID() error
 	SetupExpiration() error
@@ -65,8 +67,23 @@ const cookieSecretEnv = "COOKIE_SECRET"
 */
 
 //NewStore will properly initialise a new Store object.
-func NewStore() *Store {
-	return &Store{Encoder: encoding.New()}
+func NewStore(cache *Cache) (*Store, error) {
+
+	return &Store{Encoder: encoding.New(),
+		Cache: cache}, nil
+}
+
+//NewCache will properly initialise a new Cache object.
+func NewCache(connectionInfo *redis.Options, redisCommand RedisCommand) (*Cache, error) {
+	cache := &Cache{}
+
+	cache.command = redisCommand
+
+	if err := cache.SetRedisClient(connectionInfo); err != nil {
+		return nil, err
+	}
+
+	return cache, nil
 }
 
 //Load is used to try and get a session from the cache. If it succeeds it will
@@ -116,12 +133,6 @@ func (s *Store) Store() error {
 		return err
 	}
 
-	err := s.SessionHandler.InitCache()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
 	encodedData, err := s.SessionHandler.EncodeSessionData()
 	if err != nil {
 		log.Error(err)
@@ -148,12 +159,7 @@ func (s *Store) Delete(req *http.Request, id *string) {
 		sessionID = *id
 	}
 
-	err := s.InitCache()
-	if err != nil {
-		log.InfoR(req, err.Error())
-	}
-
-	_, err = s.Cache.connection.Del(sessionID).Result()
+	_, err := s.Cache.connection.Del(sessionID).Result()
 
 	if err != nil {
 		log.InfoR(req, err.Error())
@@ -275,29 +281,9 @@ func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookie
 	}
 }
 
-//init will construct a new Cache and invoke setRedisClient.
-func (s *Store) InitCache() error {
-	cache := &Cache{}
-
-	var redisCommand RedisCommand = cache
-	cache.command = redisCommand
-
-	if err := cache.setRedisClient(); err != nil {
-		return err
-	}
-
-	s.Cache = cache
-
-	return nil
-}
-
 //getStoredSession will get the session from the Cache, and validate it.
 //If it is invalid, it will return an error.
 func (s *Store) getStoredSession(req *http.Request) (string, error) {
-	err := s.InitCache()
-	if err != nil {
-		return "", err
-	}
 
 	storedSession, err := s.Cache.getSession(req, s.ID)
 
@@ -363,12 +349,14 @@ func (c *Cache) SetSessionData(key string, value interface{}, expiration time.Du
 }
 
 // SetRedisClient into the Cache struct
-func (c *Cache) setRedisClient() error {
-	client := redis.NewClient(&redis.Options{
+func (c *Cache) SetRedisClient(options *redis.Options) error {
+	client := redis.NewClient(options)
+
+	/*client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
-	})
+	})*/
 
 	if _, err := client.Ping().Result(); err != nil {
 		return err

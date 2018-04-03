@@ -334,16 +334,22 @@ func TestStoreErrorInValidateStore(t *testing.T) {
 func TestStoreErrorInInitCache(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	connectionInfo := &redis.Options{}
+
+	command := &mockState.RedisCommand{}
+
+	cache, err := NewCache(connectionInfo, command)
+
+	s, err := NewStore(cache)
 	s.setStoreData()
 
 	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateSession").Return(nil)
-	sessionHandler.On("InitCache").Return(errors.New("Error initiating cache"))
+	sessionHandler.On("EncodeSessionData").Return("", errors.New(""))
 
 	s.SessionHandler = sessionHandler
 
-	err := s.Store()
+	err = s.Store()
 
 	assert.NotNil(err)
 }

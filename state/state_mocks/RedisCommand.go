@@ -28,3 +28,7 @@ func (_m *RedisCommand) SetSessionData(key string, value interface{}, expiration
 
 	return r0
 }
+
+func (_m *RedisCommand) SetRedisClient(*redis.Options) error {
+	return nil
+}
