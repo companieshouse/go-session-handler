@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -642,4 +643,37 @@ func TestValidateExpirationHappyPath(t *testing.T) {
 
 	assert.Nil(err)
 	assert.Equal(s.Expires, uint64(0))
+}
+
+// ------------------- Routes Through ValidateCookieSignature() -------------------
+
+// TestValidateCookieSignatureLengthInvalid - Verify that if the signature from
+// the cookie is too short, an appropriate error is thrown
+func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
+
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("Clear", new(http.Request)).Return()
+
+	s.SessionHandler = sessionHandler
+
+	err := s.ValidateCookieSignature(new(http.Request), "")
+
+	assert.Equal("Cookie signature is less than the desired cookie length", err.Error())
+}
+
+// TestValidateCookieSignatureHappyPath - Verify that no errors are thrown when
+// following the validate cookie signature 'happy path'
+func TestValidateCookieSignatureHappyPath(t *testing.T) {
+
+	assert := assert.New(t)
+
+	s := &Store{}
+
+	err := s.ValidateCookieSignature(new(http.Request), strings.Repeat("a", cookieValueLength))
+
+	assert.Nil(err)
 }

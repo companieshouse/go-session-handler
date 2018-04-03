@@ -274,7 +274,7 @@ func (s *Store) ValidateCookieSignature(req *http.Request, cookieSignature strin
 		err := errors.New("Cookie signature is less than the desired cookie length")
 		log.InfoR(req, err.Error())
 
-		s.Clear(req)
+		s.SessionHandler.Clear(req)
 
 		return err
 	}
