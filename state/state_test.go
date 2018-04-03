@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	encoding "github.com/companieshouse/go-session-handler/encoding"
 	mockEncoding "github.com/companieshouse/go-session-handler/encoding/encoding_mocks"
 	mockState "github.com/companieshouse/go-session-handler/state/state_mocks"
 	"github.com/stretchr/testify/assert"
@@ -606,6 +607,21 @@ func TestGetStoredSessionHappyPath(t *testing.T) {
 
 // ------------------- Routes Through ValidateExpiration() -------------------
 
+// TestValidateExpirationExpiresIsZero - Verify that when expires is zero,
+// setupExpiration is called
+func TestValidateExpirationExpiresIsZero(t *testing.T) {
+
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
+
+	sessionHandler.On("SetupExpiration").Return(nil)
+
+	data := map[string]interface{}{"expires": uint64(0), "expiration": uint64(60)}
+	s.Data = data
+
+	s.ValidateExpiration(new(http.Request))
+}
+
 // TestValidateExpirationHasExpired - Verify that when a session has expired we
 // throw an error
 func TestValidateExpirationHasExpired(t *testing.T) {
@@ -696,7 +712,7 @@ func TestValidateCookieSignatureParts(t *testing.T) {
 		strings.Repeat("a", signatureStart))
 }
 
-// --------- Routes Through Delete() ---------
+// -------------------- Routes Through Delete() --------------------
 
 // TestDelete - Verify that errors are logged if there's a Redis connection
 // error whilst deleting session data
@@ -715,4 +731,28 @@ func TestDelete(t *testing.T) {
 	var testId string = "test"
 
 	s.Delete(new(http.Request), &testId)
+}
+
+// -------------------- Routes Through RegenerateID() --------------------
+
+// TestRegenerateId - Verify that when regerating an ID, the new ID is base 64
+// encoded
+func TestRegenerateId(t *testing.T) {
+
+	assert := assert.New(t)
+
+	encoder, sessionHandler, cache := getMockStoreObjects()
+
+	s := NewStore(encoder, sessionHandler, cache)
+
+	var Encoder encoding.Encoder
+
+	encoder.On("EncodeBase64", mock.AnythingOfType("[]uint8")).
+		Return(Encoder.EncodeBase64([]byte("test")))
+
+	s.RegenerateID()
+
+	_, err := Encoder.DecodeBase64(s.ID)
+
+	assert.Nil(err)
 }

@@ -339,7 +339,7 @@ func (s *Store) ValidateExpiration(req *http.Request) error {
 	s.Expires = s.Data["expires"].(uint64)
 
 	if s.Expires == uint64(0) {
-		s.SetupExpiration()
+		s.sessionHandler.SetupExpiration()
 	}
 
 	now := uint64(time.Now().Unix())
@@ -410,9 +410,4 @@ func (s *Store) EncodeSessionData() (string, error) {
 
 	b64EncodedData := s.encoder.EncodeBase64(msgpackEncodedData)
 	return b64EncodedData, nil
-}
-
-func (s *Store) InitSessionHandler() {
-	var sessionHandler SessionHandlerInterface = s
-	s.sessionHandler = sessionHandler
 }
