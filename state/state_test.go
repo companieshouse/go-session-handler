@@ -645,7 +645,7 @@ func TestValidateExpirationHappyPath(t *testing.T) {
 	assert.Equal(s.Expires, uint64(0))
 }
 
-// ------------------- Routes Through ValidateCookieSignature() -------------------
+// ---------------- Routes Through ValidateCookieSignature() ----------------
 
 // TestValidateCookieSignatureLengthInvalid - Verify that if the signature from
 // the cookie is too short, an appropriate error is thrown
@@ -676,4 +676,22 @@ func TestValidateCookieSignatureHappyPath(t *testing.T) {
 	err := s.ValidateCookieSignature(new(http.Request), strings.Repeat("a", cookieValueLength))
 
 	assert.Nil(err)
+}
+
+// --------- Routes Through ExtractAndValidateCookieSignatureParts() ---------
+
+// TestValidateCookieSignatureParts - Verify that if the cookie signature parts
+// don't match, we clear the session data
+func TestValidateCookieSignatureParts(t *testing.T) {
+
+	s := &Store{}
+
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	sessionHandler.On("GenerateSignature").Return("abc")
+	sessionHandler.On("Clear", new(http.Request)).Return()
+
+	s.SessionHandler = sessionHandler
+
+	s.ExtractAndValidateCookieSignatureParts(new(http.Request),
+		strings.Repeat("a", signatureStart))
 }

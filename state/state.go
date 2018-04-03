@@ -55,6 +55,7 @@ type SessionHandlerInterface interface {
 	DecodeSession(req *http.Request, session string) (map[string]interface{}, error)
 	Clear(req *http.Request)
 	ValidateExpiration(req *http.Request) error
+	GenerateSignature() string
 }
 
 //Multiples of 3 bytes avoids = padding in base64 string
@@ -194,7 +195,7 @@ func (s *Store) RegenerateID() error {
 	return nil
 }
 
-func (s *Store) generateSignature() string {
+func (s *Store) GenerateSignature() string {
 	sum := s.Encoder.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
 	return s.Encoder.EncodeBase64(sum[:])
 }
@@ -290,8 +291,8 @@ func (s *Store) ExtractAndValidateCookieSignatureParts(req *http.Request, cookie
 	sig := cookieSignature[signatureStart:len(cookieSignature)]
 
 	//Validate signature is the same
-	if sig != s.generateSignature() {
-		s.Clear(req)
+	if sig != s.SessionHandler.GenerateSignature() {
+		s.SessionHandler.Clear(req)
 		return
 	}
 }
