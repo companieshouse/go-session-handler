@@ -602,3 +602,44 @@ func TestGetStoredSessionHappyPath(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal("Test", session)
 }
+
+// ------------------- Routes Through ValidateExpiration() -------------------
+
+// TestValidateExpirationHasExpired - Verify that when a session has expired we
+// throw an error
+func TestValidateExpirationHasExpired(t *testing.T) {
+
+	assert := assert.New(t)
+
+	now := uint64(time.Now().Unix())
+	expires := now - uint64(60)
+
+	data := map[string]interface{}{"expires": expires, "expiration": uint64(60)}
+	s := &Store{}
+
+	s.Data = data
+
+	err := s.ValidateExpiration(new(http.Request))
+
+	assert.Equal("Store has expired", err.Error())
+}
+
+// TestValidateExpirationHappyPath - Verify that no errors are thrown when the
+// 'happy path' is followed when validating session expiration
+func TestValidateExpirationHappyPath(t *testing.T) {
+
+	assert := assert.New(t)
+
+	now := uint64(time.Now().Unix())
+	expires := now + uint64(60)
+
+	data := map[string]interface{}{"expires": expires, "expiration": uint64(60)}
+	s := &Store{}
+
+	s.Data = data
+
+	err := s.ValidateExpiration(new(http.Request))
+
+	assert.Nil(err)
+	assert.Equal(s.Expires, uint64(0))
+}
