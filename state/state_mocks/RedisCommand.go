@@ -32,6 +32,20 @@ func (_m *RedisCommand) GetSessionData(key string) (string, error) {
 	return r0, r1
 }
 
+// SetRedisClient provides a mock function with given fields: _a0
+func (_m *RedisCommand) SetRedisClient(_a0 *redis.Options) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*redis.Options) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SetSessionData provides a mock function with given fields: key, value, expiration
 func (_m *RedisCommand) SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	ret := _m.Called(key, value, expiration)

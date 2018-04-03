@@ -46,6 +46,19 @@ func clearEnvVariables() {
 	os.Clearenv()
 }
 
+func getMockStoreObjects() (*mockEncoding.EncodingInterface, *mockState.SessionHandlerInterface, *Cache) {
+	sessionHandler := &mockState.SessionHandlerInterface{}
+	encoder := &mockEncoding.EncodingInterface{}
+	connectionInfo := &redis.Options{}
+	command := &mockState.RedisCommand{}
+
+	command.On("SetRedisClient", connectionInfo).Return(nil)
+
+	cache, _ := NewCache(connectionInfo, command)
+
+	return encoder, sessionHandler, cache
+}
+
 // ----------------------------------------------------------------------------
 
 // TestValidateStoreDataIsNil - Verify an error is thrown if session data is nil
@@ -54,11 +67,12 @@ func TestValidateStoreDataIsNil(t *testing.T) {
 	setEnvVariables([]string{})
 	assert := assert.New(t)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+
 	sessionHandler.On("RegenerateID").Return(nil)
 	sessionHandler.On("SetupExpiration").Return(nil)
 
-	s := &Store{SessionHandler: sessionHandler}
+	s := NewStore(encoder, sessionHandler, cache)
 
 	err := s.ValidateSession()
 	assert.Equal("No session data to store", err.Error())
@@ -73,11 +87,11 @@ func TestValidateStoreHappyPath(t *testing.T) {
 	setEnvVariables([]string{})
 	assert := assert.New(t)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
 	sessionHandler.On("RegenerateID").Return(nil)
 	sessionHandler.On("SetupExpiration").Return(nil)
 
-	s := &Store{SessionHandler: sessionHandler}
+	s := NewStore(encoder, sessionHandler, cache)
 	s.setStoreData()
 
 	err := s.ValidateSession()
@@ -93,10 +107,10 @@ func TestValidateStoreErrorRegeneratingID(t *testing.T) {
 	setEnvVariables([]string{})
 	assert := assert.New(t)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
 	sessionHandler.On("RegenerateID").Return(errors.New("Error Regenerating ID"))
 
-	s := &Store{SessionHandler: sessionHandler}
+	s := NewStore(encoder, sessionHandler, cache)
 
 	err := s.ValidateSession()
 	assert.NotNil(err)
@@ -111,11 +125,11 @@ func TestValidateStoreErrorSettingExpiration(t *testing.T) {
 	setEnvVariables([]string{})
 	assert := assert.New(t)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
 	sessionHandler.On("RegenerateID").Return(nil)
 	sessionHandler.On("SetupExpiration").Return(errors.New("Error setting expiration"))
 
-	s := &Store{SessionHandler: sessionHandler}
+	s := NewStore(encoder, sessionHandler, cache)
 
 	err := s.ValidateSession()
 	assert.NotNil(err)
@@ -133,7 +147,9 @@ func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 
 	setEnvVariables([]string{defaultExpirationEnv})
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+
+	s := NewStore(encoder, sessionHandler, cache)
 
 	err := s.SetupExpiration()
 	assert.NotNil(err)
@@ -147,7 +163,9 @@ func TestSetupExpirationDataIsNil(t *testing.T) {
 	assert := assert.New(t)
 
 	setEnvVariables([]string{})
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+
+	s := NewStore(encoder, sessionHandler, cache)
 
 	_ = s.SetupExpiration()
 	assert.NotZero(s.Expires)
@@ -163,7 +181,9 @@ func TestSetupExpirationDataNotNil(t *testing.T) {
 	assert := assert.New(t)
 
 	setEnvVariables([]string{})
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+
+	s := NewStore(encoder, sessionHandler, cache)
 	s.setStoreData()
 
 	_ = s.SetupExpiration()
@@ -179,18 +199,16 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 
 	assert := assert.New(t)
 
-	s := &Store{}
-	s.setStoreData()
-
-	c := &Cache{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
 
 	command := &mockState.RedisCommand{}
 	command.On("SetSessionData", "", "", time.Duration(0)).
 		Return(redis.NewStatusResult("", errors.New("Unsuccessful save")))
 
-	c.command = command
+	cache.command = command
 
-	s.Cache = c
+	s := NewStore(encoder, sessionHandler, cache)
+	s.setStoreData()
 
 	err := s.SetSession("")
 	assert.NotNil(err)
@@ -202,18 +220,16 @@ func TestSetSessionSuccessfulSave(t *testing.T) {
 
 	assert := assert.New(t)
 
-	s := &Store{}
-	s.setStoreData()
-
-	c := &Cache{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
 
 	command := &mockState.RedisCommand{}
 	command.On("SetSessionData", "", "", time.Duration(0)).
 		Return(redis.NewStatusResult("Success", nil))
 
-	c.command = command
+	cache.command = command
 
-	s.Cache = c
+	s := NewStore(encoder, sessionHandler, cache)
+	s.setStoreData()
 
 	err := s.SetSession("")
 	assert.Nil(err)
@@ -226,14 +242,12 @@ func TestSetSessionSuccessfulSave(t *testing.T) {
 func TestEncodeSessionDataMessagePackError(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 	s.setStoreData()
 
-	encodingInterface := &mockEncoding.EncodingInterface{}
-	encodingInterface.On("EncodeMsgPack", s.Data).
+	encoder.On("EncodeMsgPack", s.Data).
 		Return([]uint8{}, errors.New("Error encoding"))
-
-	s.Encoder = encodingInterface
 
 	_, err := s.EncodeSessionData()
 
@@ -245,14 +259,13 @@ func TestEncodeSessionDataMessagePackError(t *testing.T) {
 func TestEncodeSessionDataHappyPath(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
+
 	s.setStoreData()
 
-	encodingInterface := &mockEncoding.EncodingInterface{}
-	encodingInterface.On("EncodeMsgPack", s.Data).Return([]uint8{}, nil)
-	encodingInterface.On("EncodeBase64", []uint8{}).Return("")
-
-	s.Encoder = encodingInterface
+	encoder.On("EncodeMsgPack", s.Data).Return([]uint8{}, nil)
+	encoder.On("EncodeBase64", []uint8{}).Return("")
 
 	_, err := s.EncodeSessionData()
 
@@ -266,12 +279,10 @@ func TestEncodeSessionDataHappyPath(t *testing.T) {
 func TestDecodeSessionDataBase64Error(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	encodingInterface := &mockEncoding.EncodingInterface{}
-	encodingInterface.On("DecodeBase64", "").Return([]byte{}, errors.New("Error base 64 decoding"))
-
-	s.Encoder = encodingInterface
+	encoder.On("DecodeBase64", "").Return([]byte{}, errors.New("Error base 64 decoding"))
 
 	_, err := s.DecodeSession(new(http.Request), "")
 
@@ -283,14 +294,12 @@ func TestDecodeSessionDataBase64Error(t *testing.T) {
 func TestDecodeSessionDataMessagePackError(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	encodingInterface := &mockEncoding.EncodingInterface{}
-	encodingInterface.On("DecodeBase64", "").Return([]byte{}, nil)
-	encodingInterface.On("DecodeMsgPack", []byte{}).
+	encoder.On("DecodeBase64", "").Return([]byte{}, nil)
+	encoder.On("DecodeMsgPack", []byte{}).
 		Return(map[string]interface{}{}, errors.New("Error encoding"))
-
-	s.Encoder = encodingInterface
 
 	_, err := s.DecodeSession(new(http.Request), "")
 
@@ -302,14 +311,12 @@ func TestDecodeSessionDataMessagePackError(t *testing.T) {
 func TestDecodeSessionDataHappyPath(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	encodingInterface := &mockEncoding.EncodingInterface{}
-	encodingInterface.On("DecodeBase64", "").Return([]byte{}, nil)
-	encodingInterface.On("DecodeMsgPack", []byte{}).
+	encoder.On("DecodeBase64", "").Return([]byte{}, nil)
+	encoder.On("DecodeMsgPack", []byte{}).
 		Return(map[string]interface{}{}, nil)
-
-	s.Encoder = encodingInterface
 
 	_, err := s.DecodeSession(new(http.Request), "")
 
@@ -323,12 +330,10 @@ func TestDecodeSessionDataHappyPath(t *testing.T) {
 func TestStoreErrorInValidateStore(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateSession").Return(errors.New("Error validating session"))
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Store()
 
@@ -340,14 +345,14 @@ func TestStoreErrorInValidateStore(t *testing.T) {
 func TestStoreErrorInInitCache(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	sessionHandler.On("ValidateSession").Return(nil)
+	sessionHandler.On("EncodeSessionData").Return("", errors.New(""))
+
+	s := NewStore(encoder, sessionHandler, cache)
 	s.setStoreData()
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
-	sessionHandler.On("ValidateSession").Return(nil)
-	sessionHandler.On("InitCache").Return(errors.New("Error initiating cache"))
-
-	s.SessionHandler = sessionHandler
+	s.sessionHandler = sessionHandler
 
 	err := s.Store()
 
@@ -359,15 +364,12 @@ func TestStoreErrorInInitCache(t *testing.T) {
 func TestStoreErrorInEncodeSessionData(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 	s.setStoreData()
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateSession").Return(nil)
-	sessionHandler.On("InitCache").Return(nil)
 	sessionHandler.On("EncodeSessionData").Return("", errors.New("Error encoding session data"))
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Store()
 
@@ -379,16 +381,14 @@ func TestStoreErrorInEncodeSessionData(t *testing.T) {
 func TestStoreErrorInSetSession(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 	s.setStoreData()
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateSession").Return(nil)
 	sessionHandler.On("InitCache").Return(nil)
 	sessionHandler.On("EncodeSessionData").Return("", nil)
 	sessionHandler.On("SetSession", "").Return(errors.New("Error setting session"))
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Store()
 
@@ -400,16 +400,14 @@ func TestStoreErrorInSetSession(t *testing.T) {
 func TestStoreHappyPath(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 	s.setStoreData()
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateSession").Return(nil)
 	sessionHandler.On("InitCache").Return(nil)
 	sessionHandler.On("EncodeSessionData").Return("", nil)
 	sessionHandler.On("SetSession", "").Return(nil)
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Store()
 
@@ -423,11 +421,29 @@ func TestStoreHappyPath(t *testing.T) {
 func TestNewStore(t *testing.T) {
 	assert := assert.New(t)
 
-	s := NewStore()
+	encoder, sessionHandler, cache := getMockStoreObjects()
 
-	assert.NotNil(s.Encoder)
-	assert.NotNil(s.SessionHandler)
-	assert.NotNil(s.Cache)
+	s := NewStore(encoder, sessionHandler, cache)
+
+	assert.NotNil(s)
+	assert.NotNil(s.encoder)
+	assert.NotNil(s.sessionHandler)
+	assert.NotNil(s.cache)
+}
+
+func TestNewCache(t *testing.T) {
+	assert := assert.New(t)
+
+	connectionInfo := &redis.Options{}
+
+	command := &mockState.RedisCommand{}
+
+	command.On("SetRedisClient", connectionInfo).Return(nil)
+
+	cache, err := NewCache(connectionInfo, command)
+
+	assert.Nil(err)
+	assert.NotNil(cache)
 }
 
 // ------------------- Routes Through Load() -------------------
@@ -437,13 +453,11 @@ func TestNewStore(t *testing.T) {
 func TestLoadErrorInValidateCookieSignature(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").
 		Return(errors.New("Error validating cookie signature"))
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Load(new(http.Request))
 
@@ -455,15 +469,13 @@ func TestLoadErrorInValidateCookieSignature(t *testing.T) {
 func TestLoadErrorInGetStoredSession(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
 	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
 	sessionHandler.On("GetStoredSession", new(http.Request)).Return("",
 		errors.New("Error retrieving stored session"))
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Load(new(http.Request))
 
@@ -475,16 +487,14 @@ func TestLoadErrorInGetStoredSession(t *testing.T) {
 func TestLoadErrorInDecodeSession(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
 	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
 	sessionHandler.On("GetStoredSession", new(http.Request)).Return("", nil)
 	sessionHandler.On("DecodeSession", new(http.Request), "").
 		Return(nil, errors.New("Error decoding session"))
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Load(new(http.Request))
 
@@ -496,16 +506,14 @@ func TestLoadErrorInDecodeSession(t *testing.T) {
 func TestLoadDecodedSessionIsNil(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
 	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
 	sessionHandler.On("GetStoredSession", new(http.Request)).Return("", nil)
 	sessionHandler.On("DecodeSession", new(http.Request), "").Return(nil, nil)
 	sessionHandler.On("Clear", new(http.Request)).Return()
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Load(new(http.Request))
 
@@ -518,9 +526,9 @@ func TestLoadDecodedSessionIsNil(t *testing.T) {
 func TestLoadErrorInValidateExpiration(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
 	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
 	sessionHandler.On("GetStoredSession", new(http.Request)).Return("", nil)
@@ -528,8 +536,6 @@ func TestLoadErrorInValidateExpiration(t *testing.T) {
 		Return(map[string]interface{}{"Test": "Hello, World!"}, nil)
 	sessionHandler.On("ValidateExpiration", new(http.Request)).
 		Return(errors.New("Error validating expiration"))
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Load(new(http.Request))
 
@@ -541,17 +547,15 @@ func TestLoadErrorInValidateExpiration(t *testing.T) {
 func TestLoadHappyPath(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
+	s := NewStore(encoder, sessionHandler, cache)
 
-	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("ValidateCookieSignature", new(http.Request), "").Return(nil)
 	sessionHandler.On("ExtractAndValidateCookieSignatureParts", new(http.Request), "").Return()
 	sessionHandler.On("GetStoredSession", new(http.Request)).Return("", nil)
 	sessionHandler.On("DecodeSession", new(http.Request), "").
 		Return(map[string]interface{}{"Test": "Hello, World!"}, nil)
 	sessionHandler.On("ValidateExpiration", new(http.Request)).Return(nil)
-
-	s.SessionHandler = sessionHandler
 
 	err := s.Load(new(http.Request))
 
@@ -565,17 +569,15 @@ func TestLoadHappyPath(t *testing.T) {
 func TestGetStoredSessionRedisError(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
-
-	c := &Cache{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
 
 	command := &mockState.RedisCommand{}
 	command.On("GetSessionData", mock.AnythingOfType("string")).
 		Return("", errors.New("Redis error thrown"))
 
-	c.command = command
+	cache.command = command
 
-	s.Cache = c
+	s := NewStore(encoder, sessionHandler, cache)
 
 	session, err := s.GetStoredSession(new(http.Request))
 	assert.NotNil(err)
@@ -587,17 +589,15 @@ func TestGetStoredSessionRedisError(t *testing.T) {
 func TestGetStoredSessionHappyPath(t *testing.T) {
 	assert := assert.New(t)
 
-	s := &Store{}
-
-	c := &Cache{}
+	encoder, sessionHandler, cache := getMockStoreObjects()
 
 	command := &mockState.RedisCommand{}
 	command.On("GetSessionData", mock.AnythingOfType("string")).
 		Return("Test", nil)
 
-	c.command = command
+	cache.command = command
 
-	s.Cache = c
+	s := NewStore(encoder, sessionHandler, cache)
 
 	session, err := s.GetStoredSession(new(http.Request))
 	assert.Nil(err)
@@ -658,7 +658,7 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 	sessionHandler := &mockState.SessionHandlerInterface{}
 	sessionHandler.On("Clear", new(http.Request)).Return()
 
-	s.SessionHandler = sessionHandler
+	s.sessionHandler = sessionHandler
 
 	err := s.ValidateCookieSignature(new(http.Request), "")
 
@@ -690,7 +690,7 @@ func TestValidateCookieSignatureParts(t *testing.T) {
 	sessionHandler.On("GenerateSignature").Return("abc")
 	sessionHandler.On("Clear", new(http.Request)).Return()
 
-	s.SessionHandler = sessionHandler
+	s.sessionHandler = sessionHandler
 
 	s.ExtractAndValidateCookieSignatureParts(new(http.Request),
 		strings.Repeat("a", signatureStart))
