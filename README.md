@@ -20,6 +20,12 @@ go get
 go build
 ```
 
+## Testing
+The library can be tested by running the following in the command line (in the `go-session-handler` directory):
+```
+goconvey
+```
+
 Note: this library is not a standalone service, and can only be used within services or other libraries.
 
 ## Environment Variables
