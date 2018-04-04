@@ -229,7 +229,7 @@ func (s *Store) SetupExpiration() error {
 		}
 
 		log.Info("Setting expiration period on session ID: " + s.ID + " to " +
-			string(expirationPeriod))
+			strconv.FormatUint((expirationPeriod), 10) + " seconds")
 	}
 
 	s.Expires = now + expirationPeriod
