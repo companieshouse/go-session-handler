@@ -72,6 +72,10 @@ const defaultExpirationEnv = "DEFAULT_EXPIRATION"
 const cookieNameEnv = "COOKIE_NAME"
 const cookieSecretEnv = "COOKIE_SECRET"
 
+var defaultExpiration uint64
+var cookieName string
+var cookieSecret string
+
 /*
    STORE
 */
@@ -200,8 +204,10 @@ func (s *Store) RegenerateID() error {
 	return nil
 }
 
+//GenerateSignature will generate a new signature based on the Store ID and
+//the cookie secret.
 func (s *Store) GenerateSignature() string {
-	sum := s.encoder.GenerateSha1Sum([]byte(s.ID + cookieSecretEnv))
+	sum := s.encoder.GenerateSha1Sum([]byte(s.ID + os.Getenv(cookieSecretEnv)))
 	return s.encoder.EncodeBase64(sum[:])
 }
 
@@ -212,16 +218,18 @@ func (s *Store) SetupExpiration() error {
 	now := uint64(time.Now().Unix())
 
 	expirationPeriod := s.Expiration
+	var err error
 
 	if expirationPeriod == 0 {
-		expirationPeriod, err := strconv.ParseUint(os.Getenv(defaultExpirationEnv), 0, 64)
+		expirationPeriod, err = strconv.ParseUint(os.Getenv(defaultExpirationEnv), 0, 64)
+
 		if err != nil {
 			log.Info(err.Error())
 			return err
-		} else {
-			log.Info("Setting expiration period on session ID: " + s.ID + " to " +
-				string(expirationPeriod))
 		}
+
+		log.Info("Setting expiration period on session ID: " + s.ID + " to " +
+			string(expirationPeriod))
 	}
 
 	s.Expires = now + expirationPeriod
@@ -334,6 +342,8 @@ func (s *Store) DecodeSession(req *http.Request, session string) (map[string]int
 	return msgpackDecodedSession, nil
 }
 
+//ValidateExpiration validates that the Expires and Expiration values on the
+//Store object are valid, and sets them if required.
 func (s *Store) ValidateExpiration(req *http.Request) error {
 	s.Expiration = s.Data["expiration"].(uint64)
 	s.Expires = s.Data["expires"].(uint64)
@@ -360,14 +370,17 @@ func (s *Store) ValidateExpiration(req *http.Request) error {
    CACHE
 */
 
+//SetSessionData stores the Session data in the Cache.
 func (c *Cache) SetSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	return c.connection.Set(key, value, expiration)
 }
 
+//GetSessionData loads the Session data from the Cache.
 func (c *Cache) GetSessionData(key string) (string, error) {
 	return c.connection.Get(key).Result()
 }
 
+//DeleteSessionData removes the Session data from the Cache.
 func (c *Cache) DeleteSessionData(key string) error {
 	_, err := c.connection.Del(key).Result()
 	return err

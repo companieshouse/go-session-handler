@@ -728,9 +728,9 @@ func TestDelete(t *testing.T) {
 
 	s := NewStore(encoder, sessionHandler, cache)
 
-	var testId string = "test"
+	testID := "test"
 
-	s.Delete(new(http.Request), &testId)
+	s.Delete(new(http.Request), &testID)
 }
 
 // -------------------- Routes Through RegenerateID() --------------------
