@@ -521,3 +521,122 @@ func TestValidateCookieSignatureHappyPath(t *testing.T) {
 		})
 	})
 }
+
+// ---------------- Routes Through getCookieFromRequest() ----------------
+
+// TestGetCookieFromRequestInvalid - Verify that if a cookie doesn't exist by
+// the name the config specifies, a new blank cookie is returned
+func TestGetCookieFromRequestInvalid(t *testing.T) {
+
+	Convey("Given the cookie by the name TEST doesn't exist", t, func() {
+
+		req, _ := http.NewRequest("GET", "teststuff", nil)
+
+		cookie := &http.Cookie{}
+
+		cookie.Name = "NOT_TEST"
+		cookie.Value = "Foo"
+
+		req.AddCookie(cookie)
+
+		s := NewStore(nil, getStoreConfig())
+
+		Convey("When I try to get the cookie by the name TEST from the request", func() {
+			newCookie := s.getCookieFromRequest(req)
+
+			Convey("Then the cookie returned should have no name", func() {
+				So(newCookie.Name, ShouldEqual, "")
+
+				Convey("And the cookie returned should have no value", func() {
+					So(newCookie.Value, ShouldEqual, "")
+				})
+			})
+
+		})
+	})
+}
+
+// TestGetCookieFromRequestHappyPath - Verify that if a cookie does exist by
+// the name the config specifies, it returns it properly
+func TestGetCookieFromRequestHappyPath(t *testing.T) {
+
+	Convey("Given the cookie by the name TEST exists", t, func() {
+
+		req, _ := http.NewRequest("GET", "teststuff", nil)
+
+		cookie := &http.Cookie{}
+
+		cookie.Name = "TEST"
+		cookie.Value = "Foo"
+
+		req.AddCookie(cookie)
+
+		s := NewStore(nil, getStoreConfig())
+
+		Convey("When I try to get the cookie by the name TEST from the request", func() {
+			newCookie := s.getCookieFromRequest(req)
+
+			Convey("Then the cookie returned should have the name TEST", func() {
+				So(newCookie.Name, ShouldEqual, "TEST")
+
+				Convey("And the cookie returned should have the value Foo", func() {
+					So(newCookie.Value, ShouldEqual, "Foo")
+				})
+			})
+		})
+	})
+}
+
+// ---------------- Routes Through decodeSession() ----------------
+
+// TestDecodeSessionBase64Invalid - Verify that if a cookie doesn't exist by
+// the name the config specifies, a new blank cookie is returned
+func TestDecodeSessionBase64Invalid(t *testing.T) {
+
+	Convey("Given the session string isn't base64 encoded", t, func() {
+
+		req, _ := http.NewRequest("GET", "teststuff", nil)
+
+		s := NewStore(nil, getStoreConfig())
+
+		Convey("When the Store tries to decode it", func() {
+			decodedSession, err := s.decodeSession(req, "Hello")
+
+			Convey("Then I should have a blank decoded session", func() {
+				So(decodedSession, ShouldBeNil)
+
+				Convey("And the error should be populated", func() {
+					So(err, ShouldNotBeNil)
+				})
+			})
+
+		})
+	})
+}
+
+// ---------------- Routes Through decodeSession() ----------------
+
+// TestDecodeSessionMessagepackInvalid - Verify that if a cookie doesn't exist by
+// the name the config specifies, a new blank cookie is returned
+func TestDecodeSessionMessagepackInvalid(t *testing.T) {
+
+	Convey("Given the session string isn't messagepack encoded", t, func() {
+
+		req, _ := http.NewRequest("GET", "teststuff", nil)
+
+		s := NewStore(nil, getStoreConfig())
+
+		Convey("When the Store tries to decode it", func() {
+			decodedSession, err := s.decodeSession(req, "SGVsbG8=")
+
+			Convey("Then I should have a blank decoded session", func() {
+				So(decodedSession, ShouldBeNil)
+
+				Convey("And the error should be populated", func() {
+					So(err, ShouldNotBeNil)
+				})
+			})
+
+		})
+	})
+}

@@ -28,6 +28,8 @@ type Store struct {
 	config     *StoreConfig
 }
 
+//StoreConfig holds the necessary config required for the Store object to be able
+//to perform the various actions.
 type StoreConfig struct {
 	defaultExpiration string
 	cookieName        string
