@@ -55,7 +55,7 @@ func getMockStoreObjects() (*mockEncoding.EncodingInterface, *mockState.SessionH
 
 	command.On("SetRedisClient", connectionInfo).Return(nil)
 
-	cache, _ := NewCache(connectionInfo, command)
+	cache := Cache{connection: connectionInfo, command: command}
 
 	return encoder, sessionHandler, cache
 }
