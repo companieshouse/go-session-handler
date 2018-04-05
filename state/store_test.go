@@ -462,7 +462,7 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 
 			c := &Cache{connection: connection}
 
-			s := NewStore(c)
+			s := NewStore(c, getStoreConfig())
 			err := s.validateCookieSignature(new(http.Request), sig)
 
 			Convey("Then an approriate error should be returned", func() {
@@ -484,7 +484,7 @@ func TestValidateCookieSignatureHappyPath(t *testing.T) {
 
 		Convey("When I initialise the Store and try to validate it", func() {
 
-			s := NewStore(nil)
+			s := NewStore(nil, getStoreConfig())
 			err := s.validateCookieSignature(new(http.Request), sig)
 
 			Convey("Then no errors should be returned", func() {
