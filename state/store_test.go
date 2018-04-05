@@ -312,3 +312,126 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 		})
 	})
 }
+
+// ------------------- Routes Through Delete() -------------------
+
+// TestDeleteErrorPath - Verify error trapping is enforced if there's an
+// issue when deleting session data
+func TestDeleteErrorPath(t *testing.T) {
+
+	Convey("Given a Redis error is thrown when deleting session data", t, func() {
+
+		connection := &mockState.Connection{}
+		connection.On("Del", "abc").
+			Return(redis.NewIntResult(0, errors.New("Unsuccessful Delete")))
+
+		Convey("When I initialise the Store and try to delete it", func() {
+
+			cache := &Cache{connection: connection}
+
+			s := NewStore(cache)
+
+			test := "abc"
+
+			err := s.Delete(new(http.Request), &test)
+
+			Convey("Then the error should be caught and returned", func() {
+
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "Unsuccessful Delete")
+			})
+		})
+	})
+}
+
+// TestDeleteHappyPath - Verify no errors are returned when following the 'happy
+// path' whilst deleting session data
+func TestDeleteHappyPath(t *testing.T) {
+
+	Convey("Given a the happy path is followed when deleting session data", t, func() {
+
+		connection := &mockState.Connection{}
+		connection.On("Del", "abc").
+			Return(redis.NewIntResult(0, nil))
+
+		Convey("When I initialise the Store and try to delete it", func() {
+
+			cache := &Cache{connection: connection}
+
+			s := NewStore(cache)
+
+			test := "abc"
+
+			err := s.Delete(new(http.Request), &test)
+
+			Convey("No errors should be returned", func() {
+
+				So(err, ShouldBeNil)
+			})
+		})
+	})
+}
+
+// ------------------- Routes Through Clear() -------------------
+
+// TestClearErrorPath - Verify error trapping is enforced if there's an
+// issue when clearing session data
+func TestClearErrorPath(t *testing.T) {
+
+	Convey("Given a Redis error is thrown when deleting session data", t, func() {
+
+		connection := &mockState.Connection{}
+		connection.On("Del", "abc").
+			Return(redis.NewIntResult(0, errors.New("Unsuccessful Delete")))
+
+		Convey("When I initialise the Store and try to clear it", func() {
+
+			cache := &Cache{connection: connection}
+
+			s := NewStore(cache)
+
+			s.ID = "abc"
+
+			err := s.Clear(new(http.Request))
+
+			Convey("Then the error should be caught and returned and ID should remain unchanged", func() {
+
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "Unsuccessful Delete")
+				So(s.ID, ShouldEqual, "abc")
+			})
+		})
+	})
+}
+
+// TestClearHappyPath - Verify no errors are returned from the Clear() happy path
+func TestClearHappyPath(t *testing.T) {
+
+	Convey("Given no errors are thrown when deleting session data", t, func() {
+
+		connection := &mockState.Connection{}
+		connection.On("Del", "abc").Return(redis.NewIntResult(0, nil))
+
+		Convey("When I initialise the Store and try to clear it", func() {
+
+			cache := &Cache{connection: connection}
+
+			s := NewStore(cache)
+
+			s.ID = "abc"
+			s.Data = map[string]interface{}{
+				"test": "Hello, world!",
+			}
+
+			err := s.Clear(new(http.Request))
+
+			Convey("Then no error should be returned, data should be nil, and the token should be refreshed",
+				func() {
+
+					So(err, ShouldBeNil)
+					So(s.ID, ShouldNotEqual, "abc")
+					So(s.Data, ShouldBeNil)
+				})
+		})
+	})
+}
