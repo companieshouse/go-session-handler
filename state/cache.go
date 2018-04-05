@@ -57,12 +57,6 @@ func (c *Cache) deleteSessionData(key string) error {
 func (c *Cache) setRedisClient(options *redis.Options) error {
 	client := redis.NewClient(options)
 
-	/*client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})*/
-
 	if _, err := client.Ping().Result(); err != nil {
 		return err
 	}
