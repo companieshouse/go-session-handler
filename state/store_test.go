@@ -329,7 +329,7 @@ func TestDeleteErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache)
+			s := NewStore(cache, nil)
 
 			test := "abc"
 
@@ -358,7 +358,7 @@ func TestDeleteHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache)
+			s := NewStore(cache, nil)
 
 			test := "abc"
 
@@ -388,7 +388,7 @@ func TestClearErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache)
+			s := NewStore(cache, nil)
 
 			s.ID = "abc"
 
@@ -416,7 +416,7 @@ func TestClearHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache)
+			s := NewStore(cache, nil)
 
 			s.ID = "abc"
 			s.Data = map[string]interface{}{
