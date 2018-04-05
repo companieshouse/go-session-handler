@@ -8,6 +8,7 @@ import (
 
 	mockState "github.com/companieshouse/go-session-handler/state/state_mocks"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/mock"
 
 	redis "gopkg.in/redis.v5"
 )
@@ -152,6 +153,83 @@ func TestValidateSessionHappyPath(t *testing.T) {
 			})
 		})
 	})
+
+	clearEnvVariables()
+}
+
+// ------------------- Routes Through Store() -------------------
+
+// TestStoreErrorInSetSession - Verify error trapping is enforced if there's an
+// issue when saving the session data
+func TestStoreErrorInSetSession(t *testing.T) {
+
+	setEnvVariables()
+
+	Convey("Given I create a store with valid data but there's an error when saving the session",
+		t, func() {
+
+			connection := &mockState.Connection{}
+			connection.On("Set", mock.AnythingOfType("string"),
+				mock.AnythingOfType("string"), time.Duration(0)).
+				Return(redis.NewStatusResult("", errors.New("Error saving session data")))
+
+			c := &Cache{connection: connection}
+
+			data := map[string]interface{}{
+				"test": "hello, world!",
+			}
+
+			s := NewStore(c)
+			s.Data = data
+
+			Convey("When I store the session", func() {
+
+				err := s.Store()
+
+				Convey("Then I expect the error to be caught and returned", func() {
+
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "Error saving session data")
+				})
+			})
+		})
+
+	clearEnvVariables()
+}
+
+// TestStoreHappyPath - Verify no errors are returned from Store if the happy
+// path is followed
+func TestStoreHappyPath(t *testing.T) {
+
+	setEnvVariables()
+
+	Convey("Given I create a store with valid data and I follow the 'happy path'",
+		t, func() {
+
+			connection := &mockState.Connection{}
+			connection.On("Set", mock.AnythingOfType("string"),
+				mock.AnythingOfType("string"), time.Duration(0)).
+				Return(redis.NewStatusResult("", nil))
+
+			c := &Cache{connection: connection}
+
+			data := map[string]interface{}{
+				"test": "hello, world!",
+			}
+
+			s := NewStore(c)
+			s.Data = data
+
+			Convey("When I store the session", func() {
+
+				err := s.Store()
+
+				Convey("Then I expect no errors to be returned", func() {
+
+					So(err, ShouldBeNil)
+				})
+			})
+		})
 
 	clearEnvVariables()
 }
