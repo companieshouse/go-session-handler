@@ -68,7 +68,7 @@ func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 	Convey("Given I haven't set environement variables and I initialise a new store with no expiration",
 		t, func() {
 
-			s := NewStore(nil)
+			s := NewStore(nil, nil)
 			So(s.Expiration, ShouldEqual, 0)
 
 			Convey("When I set up the expiration", func() {
@@ -93,7 +93,7 @@ func TestValidateSessionDataIsNil(t *testing.T) {
 
 	Convey("Given I initialise a store without any data", t, func() {
 
-		s := NewStore(nil)
+		s := NewStore(nil, nil)
 
 		Convey("When I validate the store", func() {
 
@@ -117,7 +117,7 @@ func TestValidateSessionErrorInSetupExpiration(t *testing.T) {
 	Convey("Given I haven't set any environment variables and I initialise a store",
 		t, func() {
 
-			s := NewStore(nil)
+			s := NewStore(nil, nil)
 
 			Convey("When I validate the store", func() {
 
@@ -140,7 +140,7 @@ func TestValidateSessionHappyPath(t *testing.T) {
 
 	Convey("Given I initialise a store with data", t, func() {
 
-		s := NewStore(nil)
+		s := NewStore(nil, nil)
 		s.Data = map[string]interface{}{
 			"test": "hello, world!",
 		}
@@ -169,7 +169,7 @@ func TestStoreErrorInValidateSession(t *testing.T) {
 
 	Convey("Given I create a store with no data", t, func() {
 
-		s := NewStore(nil)
+		s := NewStore(nil, nil)
 
 		Convey("When I store the session", func() {
 
@@ -206,7 +206,7 @@ func TestStoreErrorInSetSession(t *testing.T) {
 				"test": "hello, world!",
 			}
 
-			s := NewStore(c)
+			s := NewStore(c, nil)
 			s.Data = data
 
 			Convey("When I store the session", func() {
@@ -244,7 +244,7 @@ func TestStoreHappyPath(t *testing.T) {
 				"test": "hello, world!",
 			}
 
-			s := NewStore(c)
+			s := NewStore(c, nil)
 			s.Data = data
 
 			Convey("When I store the session", func() {
@@ -269,7 +269,7 @@ func TestValidateExpirationSessionHasExpired(t *testing.T) {
 
 	Convey("Given I have an expired session", t, func() {
 
-		s := NewStore(nil)
+		s := NewStore(nil, nil)
 
 		now := uint64(time.Now().Unix())
 		expires := now - uint64(60)
@@ -296,7 +296,7 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 
 	Convey("Given I have an session store with expires set to 0", t, func() {
 
-		s := NewStore(nil)
+		s := NewStore(nil, nil)
 
 		data := map[string]interface{}{"expires": uint64(0), "expiration": uint64(60)}
 		s.Data = data
@@ -330,7 +330,7 @@ func TestDeleteErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache)
+			s := NewStore(cache, nil)
 
 			test := "abc"
 
@@ -359,7 +359,7 @@ func TestDeleteHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache)
+			s := NewStore(cache, nil)
 
 			test := "abc"
 
@@ -389,7 +389,7 @@ func TestClearErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache)
+			s := NewStore(cache, nil)
 
 			s.ID = "abc"
 
@@ -417,7 +417,7 @@ func TestClearHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache)
+			s := NewStore(cache, nil)
 
 			s.ID = "abc"
 			s.Data = map[string]interface{}{
