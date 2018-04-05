@@ -2,6 +2,7 @@ package state
 
 import (
 	"errors"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -159,6 +160,31 @@ func TestValidateSessionHappyPath(t *testing.T) {
 
 // ------------------- Routes Through Store() -------------------
 
+// TestStoreErrorInValidateSession - Verify error trapping is enforced if there's an
+// issue when validating the session data
+func TestStoreErrorInValidateSession(t *testing.T) {
+
+	setEnvVariables()
+
+	Convey("Given I create a store with no data", t, func() {
+
+		s := NewStore(nil)
+
+		Convey("When I store the session", func() {
+
+			err := s.Store()
+
+			Convey("Then I expect the error to be caught and returned", func() {
+
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "No session data to store")
+			})
+		})
+	})
+
+	clearEnvVariables()
+}
+
 // TestStoreErrorInSetSession - Verify error trapping is enforced if there's an
 // issue when saving the session data
 func TestStoreErrorInSetSession(t *testing.T) {
@@ -232,4 +258,57 @@ func TestStoreHappyPath(t *testing.T) {
 		})
 
 	clearEnvVariables()
+}
+
+// ------------------- Routes Through validateExpiration() -------------------
+
+// TestValidateExpirationSessionHasExpired - Verify that when a session has
+// expired we throw an error
+func TestValidateExpirationSessionHasExpired(t *testing.T) {
+
+	Convey("Given I have an expired session", t, func() {
+
+		s := NewStore(nil)
+
+		now := uint64(time.Now().Unix())
+		expires := now - uint64(60)
+
+		data := map[string]interface{}{"expires": expires, "expiration": uint64(60)}
+		s.Data = data
+
+		Convey("Given I call validate expiration on the store", func() {
+
+			err := s.validateExpiration(new(http.Request))
+
+			Convey("Then an appropriate error is returned and session data is made nil", func() {
+
+				So(err.Error(), ShouldEqual, "Store has expired")
+				So(s.Data, ShouldBeNil)
+			})
+		})
+	})
+}
+
+// TestValidateExpirationNoExpirationSet - Verify that when 'expires' isn't set
+// on the store, it is set in validateExpiration
+func TestValidateExpirationNoExpirationSet(t *testing.T) {
+
+	Convey("Given I have an session store with expires set to 0", t, func() {
+
+		s := NewStore(nil)
+
+		data := map[string]interface{}{"expires": uint64(0), "expiration": uint64(60)}
+		s.Data = data
+
+		Convey("Given I call validate expiration on the store", func() {
+
+			err := s.validateExpiration(new(http.Request))
+
+			Convey("Then no errors are returned and expires has been set", func() {
+
+				So(err, ShouldBeNil)
+				So(s.Expires, ShouldNotEqual, uint64(0))
+			})
+		})
+	})
 }

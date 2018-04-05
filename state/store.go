@@ -298,8 +298,6 @@ func (s *Store) validateExpiration(req *http.Request) error {
 		return err
 	}
 
-	s.Expires = 0
-
 	return nil
 }
 
