@@ -3,7 +3,6 @@ package state
 import (
 	"errors"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -15,19 +14,12 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
-func setEnvVariables() {
-	m := map[string]string{
-		"ID_OCTETS":          "28",
-		"DEFAULT_EXPIRATION": "60",
+func getStoreConfig() *StoreConfig {
+	return &StoreConfig{
+		defaultExpiration: "60",
+		cookieName:        "TEST",
+		cookieSecret:      "OTHER_TEST",
 	}
-
-	for key, value := range m {
-		os.Setenv(key, value)
-	}
-}
-
-func clearEnvVariables() {
-	os.Clearenv()
 }
 
 // ------------------- Routes Through SetSession() -------------------
@@ -99,7 +91,7 @@ func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 	Convey("Given I haven't set environement variables and I initialise a new store with no expiration",
 		t, func() {
 
-			s := NewStore(nil, nil)
+			s := NewStore(nil, &StoreConfig{})
 			So(s.Expiration, ShouldEqual, 0)
 
 			Convey("When I set up the expiration", func() {
@@ -120,11 +112,9 @@ func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 // session data, there's no data to store
 func TestValidateSessionDataIsNil(t *testing.T) {
 
-	setEnvVariables()
-
 	Convey("Given I initialise a store without any data", t, func() {
 
-		s := NewStore(nil, nil)
+		s := NewStore(nil, getStoreConfig())
 
 		Convey("When I validate the store", func() {
 
@@ -137,8 +127,6 @@ func TestValidateSessionDataIsNil(t *testing.T) {
 			})
 		})
 	})
-
-	clearEnvVariables()
 }
 
 // TestValidateSessionErrorInSetupExpiration - Verify error trapping if there's
@@ -148,7 +136,7 @@ func TestValidateSessionErrorInSetupExpiration(t *testing.T) {
 	Convey("Given I haven't set any environment variables and I initialise a store",
 		t, func() {
 
-			s := NewStore(nil, nil)
+			s := NewStore(nil, &StoreConfig{})
 
 			Convey("When I validate the store", func() {
 
@@ -167,11 +155,9 @@ func TestValidateSessionErrorInSetupExpiration(t *testing.T) {
 // if the happy path is followed
 func TestValidateSessionHappyPath(t *testing.T) {
 
-	setEnvVariables()
-
 	Convey("Given I initialise a store with data", t, func() {
 
-		s := NewStore(nil, nil)
+		s := NewStore(nil, getStoreConfig())
 		s.Data = map[string]interface{}{
 			"test": "hello, world!",
 		}
@@ -186,8 +172,6 @@ func TestValidateSessionHappyPath(t *testing.T) {
 			})
 		})
 	})
-
-	clearEnvVariables()
 }
 
 // ------------------- Routes Through Store() -------------------
@@ -196,11 +180,9 @@ func TestValidateSessionHappyPath(t *testing.T) {
 // issue when validating the session data
 func TestStoreErrorInValidateSession(t *testing.T) {
 
-	setEnvVariables()
-
 	Convey("Given I create a store with no data", t, func() {
 
-		s := NewStore(nil, nil)
+		s := NewStore(nil, getStoreConfig())
 
 		Convey("When I store the session", func() {
 
@@ -213,15 +195,11 @@ func TestStoreErrorInValidateSession(t *testing.T) {
 			})
 		})
 	})
-
-	clearEnvVariables()
 }
 
 // TestStoreErrorInSetSession - Verify error trapping is enforced if there's an
 // issue when saving the session data
 func TestStoreErrorInSetSession(t *testing.T) {
-
-	setEnvVariables()
 
 	Convey("Given I create a store with valid data but there's an error when saving the session",
 		t, func() {
@@ -237,7 +215,7 @@ func TestStoreErrorInSetSession(t *testing.T) {
 				"test": "hello, world!",
 			}
 
-			s := NewStore(c, nil)
+			s := NewStore(c, getStoreConfig())
 			s.Data = data
 
 			Convey("When I store the session", func() {
@@ -251,15 +229,11 @@ func TestStoreErrorInSetSession(t *testing.T) {
 				})
 			})
 		})
-
-	clearEnvVariables()
 }
 
 // TestStoreHappyPath - Verify no errors are returned from Store if the happy
 // path is followed
 func TestStoreHappyPath(t *testing.T) {
-
-	setEnvVariables()
 
 	Convey("Given I create a store with valid data and I follow the 'happy path'",
 		t, func() {
@@ -275,7 +249,7 @@ func TestStoreHappyPath(t *testing.T) {
 				"test": "hello, world!",
 			}
 
-			s := NewStore(c, nil)
+			s := NewStore(c, getStoreConfig())
 			s.Data = data
 
 			Convey("When I store the session", func() {
@@ -288,8 +262,6 @@ func TestStoreHappyPath(t *testing.T) {
 				})
 			})
 		})
-
-	clearEnvVariables()
 }
 
 // ------------------- Routes Through validateExpiration() -------------------
@@ -300,7 +272,7 @@ func TestValidateExpirationSessionHasExpired(t *testing.T) {
 
 	Convey("Given I have an expired session", t, func() {
 
-		s := NewStore(nil, nil)
+		s := NewStore(nil, getStoreConfig())
 
 		now := uint64(time.Now().Unix())
 		expires := now - uint64(60)
@@ -327,7 +299,7 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 
 	Convey("Given I have an session store with expires set to 0", t, func() {
 
-		s := NewStore(nil, nil)
+		s := NewStore(nil, getStoreConfig())
 
 		data := map[string]interface{}{"expires": uint64(0), "expiration": uint64(60)}
 		s.Data = data
@@ -361,7 +333,7 @@ func TestDeleteErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, nil)
+			s := NewStore(cache, getStoreConfig())
 
 			test := "abc"
 
@@ -390,7 +362,7 @@ func TestDeleteHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, nil)
+			s := NewStore(cache, getStoreConfig())
 
 			test := "abc"
 
@@ -420,7 +392,7 @@ func TestClearErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, nil)
+			s := NewStore(cache, getStoreConfig())
 
 			s.ID = "abc"
 
@@ -448,7 +420,7 @@ func TestClearHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, nil)
+			s := NewStore(cache, getStoreConfig())
 
 			s.ID = "abc"
 			s.Data = map[string]interface{}{
@@ -485,7 +457,7 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 
 			c := &Cache{connection: connection}
 
-			s := NewStore(c)
+			s := NewStore(c, getStoreConfig())
 			err := s.validateCookieSignature(new(http.Request), sig)
 
 			Convey("Then an approriate error should be returned", func() {
@@ -507,7 +479,7 @@ func TestValidateCookieSignatureHappyPath(t *testing.T) {
 
 		Convey("When I initialise the Store and try to validate it", func() {
 
-			s := NewStore(nil)
+			s := NewStore(nil, getStoreConfig())
 			err := s.validateCookieSignature(new(http.Request), sig)
 
 			Convey("Then no errors should be returned", func() {
