@@ -295,7 +295,7 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 
 	Convey("Given I have an session store with expires set to 0", t, func() {
 
-		s := NewStore(nil)
+		s := NewStore(nil, nil)
 
 		data := map[string]interface{}{"expires": uint64(0), "expiration": uint64(60)}
 		s.Data = data
