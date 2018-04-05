@@ -59,6 +59,37 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 	})
 }
 
+// ------------------- Routes Through GetSession() -------------------
+
+// TestGetSessionErrorPath - Verify error trapping if any errors are returned
+// from redis
+func TestGetSessionErrorOnSave(t *testing.T) {
+
+	Convey("Given a Redis error is thrown when retrieving session data", t, func() {
+
+		connection := &mockState.Connection{}
+		connection.On("Get", mock.AnythingOfType("string")).
+			Return(redis.NewStringResult("", errors.New("Unsuccessful session retrieval")))
+
+		Convey("When I initialise the Store and try to get the session", func() {
+
+			cache := &Cache{connection: connection}
+
+			s := &Store{cache: cache}
+
+			session, err := s.getStoredSession(new(http.Request))
+
+			Convey("Then I expect the error to be caught and returned, and session data should be blank",
+				func() {
+
+					So(err, ShouldNotBeNil)
+					So("Unsuccessful session retrieval", ShouldEqual, err.Error())
+					So(session, ShouldBeBlank)
+				})
+		})
+	})
+}
+
 // ------------------- Routes Through setupExpiration() -------------------
 
 // TestSetupExpirationDefaultPeriodEnvVarMissing - Verify an error is thrown if
