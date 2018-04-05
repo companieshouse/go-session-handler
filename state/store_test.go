@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -440,6 +441,56 @@ func TestClearHappyPath(t *testing.T) {
 					So(s.ID, ShouldNotEqual, "abc")
 					So(s.Data, ShouldBeNil)
 				})
+		})
+	})
+}
+
+// ---------------- Routes Through ValidateCookieSignature() ----------------
+
+// TestValidateCookieSignatureLengthInvalid - Verify that if the signature from
+// the cookie is too short, an appropriate error is thrown
+func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
+
+	Convey("Given the cookie signature is less than the desired length", t, func() {
+
+		sig := strings.Repeat("a", cookieValueLength-1)
+
+		Convey("When I initialise the Store and try to validate it, provided there are no Redis errors", func() {
+
+			connection := &mockState.Connection{}
+			connection.On("Del", "").Return(redis.NewIntResult(0, nil))
+
+			c := &Cache{connection: connection}
+
+			s := NewStore(c)
+			err := s.validateCookieSignature(new(http.Request), sig)
+
+			Convey("Then an approriate error should be returned", func() {
+
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "Cookie signature is less than the desired cookie length")
+			})
+		})
+	})
+}
+
+// TestValidateCookieSignatureHappyPath - Verify that no errors are thrown when
+// following the validate cookie signature 'happy path'
+func TestValidateCookieSignatureHappyPath(t *testing.T) {
+
+	Convey("Given the cookie signature is the desired length", t, func() {
+
+		sig := strings.Repeat("a", cookieValueLength)
+
+		Convey("When I initialise the Store and try to validate it", func() {
+
+			s := NewStore(nil)
+			err := s.validateCookieSignature(new(http.Request), sig)
+
+			Convey("Then no errors should be returned", func() {
+
+				So(err, ShouldBeNil)
+			})
 		})
 	})
 }
