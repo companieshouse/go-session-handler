@@ -107,7 +107,7 @@ func (s *Store) Store() error {
 //does not clear the loaded session. The Clear method will take care of that.
 //If the string passed in is nil, it will delete the session with an id the same
 //as that of s.ID
-func (s *Store) Delete(req *http.Request, id *string) {
+func (s *Store) Delete(req *http.Request, id *string) error {
 	sessionID := s.ID
 
 	if id != nil && len(*id) > 0 {
@@ -118,15 +118,22 @@ func (s *Store) Delete(req *http.Request, id *string) {
 
 	if err != nil {
 		log.InfoR(req, err.Error())
+		return err
 	}
+
+	return nil
 }
 
 //Clear destroys the current loaded session and removes it from the backing
 //store. It will also regenerate the session ID.
-func (s *Store) Clear(req *http.Request) {
+func (s *Store) Clear(req *http.Request) error {
+	err := s.Delete(req, nil) //Delete the previously stored Session
+	if err != nil {
+		return err
+	}
 	s.Data = nil
-	s.Delete(req, nil) //Delete the previously stored Session
 	s.regenerateID()
+	return nil
 }
 
 //regenerateID refreshes the token against the Store struct
