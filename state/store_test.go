@@ -3,7 +3,6 @@ package state
 import (
 	"errors"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -14,21 +13,6 @@ import (
 
 	redis "gopkg.in/redis.v5"
 )
-
-func setEnvVariables() {
-	m := map[string]string{
-		"ID_OCTETS":          "28",
-		"DEFAULT_EXPIRATION": "60",
-	}
-
-	for key, value := range m {
-		os.Setenv(key, value)
-	}
-}
-
-func clearEnvVariables() {
-	os.Clearenv()
-}
 
 func getStoreConfig() *StoreConfig {
 	return &StoreConfig{
@@ -97,8 +81,6 @@ func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
 // session data, there's no data to store
 func TestValidateSessionDataIsNil(t *testing.T) {
 
-	setEnvVariables()
-
 	Convey("Given I initialise a store without any data", t, func() {
 
 		s := NewStore(nil, getStoreConfig())
@@ -114,8 +96,6 @@ func TestValidateSessionDataIsNil(t *testing.T) {
 			})
 		})
 	})
-
-	clearEnvVariables()
 }
 
 // TestValidateSessionErrorInSetupExpiration - Verify error trapping if there's
@@ -144,8 +124,6 @@ func TestValidateSessionErrorInSetupExpiration(t *testing.T) {
 // if the happy path is followed
 func TestValidateSessionHappyPath(t *testing.T) {
 
-	setEnvVariables()
-
 	Convey("Given I initialise a store with data", t, func() {
 
 		s := NewStore(nil, getStoreConfig())
@@ -163,8 +141,6 @@ func TestValidateSessionHappyPath(t *testing.T) {
 			})
 		})
 	})
-
-	clearEnvVariables()
 }
 
 // ------------------- Routes Through Store() -------------------
@@ -172,8 +148,6 @@ func TestValidateSessionHappyPath(t *testing.T) {
 // TestStoreErrorInValidateSession - Verify error trapping is enforced if there's an
 // issue when validating the session data
 func TestStoreErrorInValidateSession(t *testing.T) {
-
-	setEnvVariables()
 
 	Convey("Given I create a store with no data", t, func() {
 
@@ -190,15 +164,11 @@ func TestStoreErrorInValidateSession(t *testing.T) {
 			})
 		})
 	})
-
-	clearEnvVariables()
 }
 
 // TestStoreErrorInSetSession - Verify error trapping is enforced if there's an
 // issue when saving the session data
 func TestStoreErrorInSetSession(t *testing.T) {
-
-	setEnvVariables()
 
 	Convey("Given I create a store with valid data but there's an error when saving the session",
 		t, func() {
@@ -228,15 +198,11 @@ func TestStoreErrorInSetSession(t *testing.T) {
 				})
 			})
 		})
-
-	clearEnvVariables()
 }
 
 // TestStoreHappyPath - Verify no errors are returned from Store if the happy
 // path is followed
 func TestStoreHappyPath(t *testing.T) {
-
-	setEnvVariables()
 
 	Convey("Given I create a store with valid data and I follow the 'happy path'",
 		t, func() {
@@ -265,8 +231,6 @@ func TestStoreHappyPath(t *testing.T) {
 				})
 			})
 		})
-
-	clearEnvVariables()
 }
 
 // ------------------- Routes Through validateExpiration() -------------------
