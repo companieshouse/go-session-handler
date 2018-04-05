@@ -55,13 +55,15 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 
 // TestGetSessionErrorPath - Verify error trapping if any errors are returned
 // from redis
-func TestGetSessionErrorOnSave(t *testing.T) {
+func TestGetSessionErrorPath(t *testing.T) {
 
 	Convey("Given a Redis error is thrown when retrieving session data", t, func() {
 
+		dummySessionData := "foo"
+
 		connection := &mockState.Connection{}
 		connection.On("Get", mock.AnythingOfType("string")).
-			Return(redis.NewStringResult("", errors.New("Unsuccessful session retrieval")))
+			Return(redis.NewStringResult(dummySessionData, errors.New("Unsuccessful session retrieval")))
 
 		Convey("When I initialise the Store and try to get the session", func() {
 
@@ -77,6 +79,36 @@ func TestGetSessionErrorOnSave(t *testing.T) {
 					So(err, ShouldNotBeNil)
 					So("Unsuccessful session retrieval", ShouldEqual, err.Error())
 					So(session, ShouldBeBlank)
+				})
+		})
+	})
+}
+
+// TestGetSessionHappyPath - Verify no errors are returned when following the
+// GetSession 'happy path'
+func TestGetSessionHappyPath(t *testing.T) {
+
+	Convey("Given no errors are thrown when retrieving session data", t, func() {
+
+		dummySessionData := "foo"
+
+		connection := &mockState.Connection{}
+		connection.On("Get", mock.AnythingOfType("string")).
+			Return(redis.NewStringResult(dummySessionData, nil))
+
+		Convey("When I initialise the Store and try to get the session", func() {
+
+			cache := &Cache{connection: connection}
+
+			s := &Store{cache: cache}
+
+			session, err := s.getStoredSession(new(http.Request))
+
+			Convey("Then I expect the session to be returned, and no errors",
+				func() {
+
+					So(err, ShouldBeNil)
+					So(session, ShouldEqual, dummySessionData)
 				})
 		})
 	})
