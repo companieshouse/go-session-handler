@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -19,10 +18,6 @@ const signatureStart = (idOctets * 4) / 3
 const signatureLength = 27 //160 bits, base 64 encoded
 const cookieValueLength = signatureStart + signatureLength
 
-const defaultExpirationEnv = "DEFAULT_EXPIRATION"
-const cookieNameEnv = "COOKIE_NAME"
-const cookieSecretEnv = "COOKIE_SECRET"
-
 //Store is the struct that is used to load/store the session.
 type Store struct {
 	ID         string
@@ -30,12 +25,19 @@ type Store struct {
 	Expires    uint64
 	Data       map[string]interface{}
 	cache      *Cache
+	config     *StoreConfig
+}
+
+type StoreConfig struct {
+	defaultExpiration string
+	cookieName        string
+	cookieSecret      string
 }
 
 //NewStore will properly initialise a new Store object.
-func NewStore(cache *Cache) *Store {
+func NewStore(cache *Cache, config *StoreConfig) *Store {
 
-	return &Store{cache: cache}
+	return &Store{cache: cache, config: config}
 }
 
 //Load is used to try and get a session from the cache. If it succeeds it will
@@ -144,7 +146,7 @@ func (s *Store) regenerateID() error {
 //generateSignature will generate a new signature based on the Store ID and
 //the cookie secret.
 func (s *Store) generateSignature() string {
-	sum := encoding.GenerateSha1Sum([]byte(s.ID + os.Getenv(cookieSecretEnv)))
+	sum := encoding.GenerateSha1Sum([]byte(s.ID + s.config.cookieSecret))
 	return encoding.EncodeBase64(sum[:])
 }
 
@@ -158,7 +160,7 @@ func (s *Store) setupExpiration() error {
 	var err error
 
 	if expirationPeriod == 0 {
-		expirationPeriod, err = strconv.ParseUint(os.Getenv(defaultExpirationEnv), 0, 64)
+		expirationPeriod, err = strconv.ParseUint(s.config.defaultExpiration, 0, 64)
 
 		if err != nil {
 			log.Info(err.Error())
@@ -207,9 +209,7 @@ func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
 	var cookie *http.Cookie
 	var err error
 
-	cookieName := os.Getenv(cookieNameEnv)
-
-	if cookie, err = req.Cookie(cookieName); err != nil {
+	if cookie, err = req.Cookie(s.config.cookieName); err != nil {
 		log.InfoR(req, err.Error())
 		cookie = &http.Cookie{}
 	}
