@@ -2,7 +2,6 @@ package state
 
 import (
 	"errors"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -17,9 +16,9 @@ import (
 
 func getStoreConfig() *StoreConfig {
 	return &StoreConfig{
-		defaultExpiration: "60",
-		cookieName:        "TEST",
-		cookieSecret:      "OTHER_TEST",
+		DefaultExpiration: "60",
+		CookieName:        "TEST",
+		CookieSecret:      "OTHER_TEST",
 	}
 }
 
@@ -72,7 +71,7 @@ func TestGetSessionErrorPath(t *testing.T) {
 
 			s := &Store{cache: cache}
 
-			session, err := s.getStoredSession(new(http.Request))
+			session, err := s.getStoredSession()
 
 			Convey("Then I expect the error to be caught and returned, and session data should be blank",
 				func() {
@@ -103,7 +102,7 @@ func TestGetSessionHappyPath(t *testing.T) {
 
 			s := &Store{cache: cache}
 
-			session, err := s.getStoredSession(new(http.Request))
+			session, err := s.getStoredSession()
 
 			Convey("Then I expect the session to be returned, and no errors",
 				func() {
@@ -113,30 +112,6 @@ func TestGetSessionHappyPath(t *testing.T) {
 				})
 		})
 	})
-}
-
-// ------------------- Routes Through setupExpiration() -------------------
-
-// TestSetupExpirationDefaultPeriodEnvVarMissing - Verify an error is thrown if
-// the 'DEFAULT_EXPIRATION' env var is not set
-func TestSetupExpirationDefaultPeriodEnvVarMissing(t *testing.T) {
-
-	Convey("Given I haven't set environement variables and I initialise a new store with no expiration",
-		t, func() {
-
-			s := NewStore(nil, &StoreConfig{})
-			So(s.Expiration, ShouldEqual, 0)
-
-			Convey("When I set up the expiration", func() {
-
-				err := s.setupExpiration()
-
-				Convey("Then I expect an error to be caught and returned", func() {
-
-					So(err, ShouldNotBeNil)
-				})
-			})
-		})
 }
 
 // ------------------- Routes Through validateSession() -------------------
@@ -308,14 +283,14 @@ func TestValidateExpirationSessionHasExpired(t *testing.T) {
 		s := NewStore(nil, getStoreConfig())
 
 		now := uint64(time.Now().Unix())
-		expires := now - uint64(60)
+		expires := uint32(now - uint64(60))
 
 		data := map[string]interface{}{"expires": expires, "expiration": uint64(60)}
 		s.Data = data
 
 		Convey("Given I call validate expiration on the store", func() {
 
-			err := s.validateExpiration(new(http.Request))
+			err := s.validateExpiration()
 
 			Convey("Then an appropriate error is returned and session data is made nil", func() {
 
@@ -334,12 +309,12 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 
 		s := NewStore(nil, getStoreConfig())
 
-		data := map[string]interface{}{"expires": uint64(0), "expiration": uint64(60)}
+		data := map[string]interface{}{"expires": uint32(0), "expiration": uint64(60)}
 		s.Data = data
 
 		Convey("Given I call validate expiration on the store", func() {
 
-			err := s.validateExpiration(new(http.Request))
+			err := s.validateExpiration()
 
 			Convey("Then no errors are returned and expires has been set", func() {
 
@@ -370,7 +345,7 @@ func TestDeleteErrorPath(t *testing.T) {
 
 			test := "abc"
 
-			err := s.Delete(new(http.Request), &test)
+			err := s.Delete(&test)
 
 			Convey("Then the error should be caught and returned", func() {
 
@@ -399,7 +374,7 @@ func TestDeleteHappyPath(t *testing.T) {
 
 			test := "abc"
 
-			err := s.Delete(new(http.Request), &test)
+			err := s.Delete(&test)
 
 			Convey("No errors should be returned", func() {
 
@@ -429,7 +404,7 @@ func TestClearErrorPath(t *testing.T) {
 
 			s.ID = "abc"
 
-			err := s.Clear(new(http.Request))
+			err := s.Clear()
 
 			Convey("Then the error should be caught and returned and ID should remain unchanged", func() {
 
@@ -460,7 +435,7 @@ func TestClearHappyPath(t *testing.T) {
 				"test": "Hello, world!",
 			}
 
-			err := s.Clear(new(http.Request))
+			err := s.Clear()
 
 			Convey("Then no error should be returned, data should be nil, and the token should be refreshed",
 				func() {
@@ -491,7 +466,7 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 			c := &Cache{connection: connection}
 
 			s := NewStore(c, getStoreConfig())
-			err := s.validateCookieSignature(new(http.Request), sig)
+			err := s.validateSessionID(sig)
 
 			Convey("Then an approriate error should be returned", func() {
 
@@ -513,76 +488,11 @@ func TestValidateCookieSignatureHappyPath(t *testing.T) {
 		Convey("When I initialise the Store and try to validate it", func() {
 
 			s := NewStore(nil, getStoreConfig())
-			err := s.validateCookieSignature(new(http.Request), sig)
+			err := s.validateSessionID(sig)
 
 			Convey("Then no errors should be returned", func() {
 
 				So(err, ShouldBeNil)
-			})
-		})
-	})
-}
-
-// ---------------- Routes Through getCookieFromRequest() ----------------
-
-// TestGetCookieFromRequestInvalid - Verify that if a cookie doesn't exist by
-// the name the config specifies, a new blank cookie is returned
-func TestGetCookieFromRequestInvalid(t *testing.T) {
-
-	Convey("Given the cookie by the name TEST doesn't exist", t, func() {
-
-		req, _ := http.NewRequest("GET", "teststuff", nil)
-
-		cookie := &http.Cookie{}
-
-		cookie.Name = "NOT_TEST"
-		cookie.Value = "Foo"
-
-		req.AddCookie(cookie)
-
-		s := NewStore(nil, getStoreConfig())
-
-		Convey("When I try to get the cookie by the name TEST from the request", func() {
-			newCookie := s.getCookieFromRequest(req)
-
-			Convey("Then the cookie returned should have no name", func() {
-				So(newCookie.Name, ShouldEqual, "")
-
-				Convey("And the cookie returned should have no value", func() {
-					So(newCookie.Value, ShouldEqual, "")
-				})
-			})
-
-		})
-	})
-}
-
-// TestGetCookieFromRequestHappyPath - Verify that if a cookie does exist by
-// the name the config specifies, it returns it properly
-func TestGetCookieFromRequestHappyPath(t *testing.T) {
-
-	Convey("Given the cookie by the name TEST exists", t, func() {
-
-		req, _ := http.NewRequest("GET", "teststuff", nil)
-
-		cookie := &http.Cookie{}
-
-		cookie.Name = "TEST"
-		cookie.Value = "Foo"
-
-		req.AddCookie(cookie)
-
-		s := NewStore(nil, getStoreConfig())
-
-		Convey("When I try to get the cookie by the name TEST from the request", func() {
-			newCookie := s.getCookieFromRequest(req)
-
-			Convey("Then the cookie returned should have the name TEST", func() {
-				So(newCookie.Name, ShouldEqual, "TEST")
-
-				Convey("And the cookie returned should have the value Foo", func() {
-					So(newCookie.Value, ShouldEqual, "Foo")
-				})
 			})
 		})
 	})
@@ -596,12 +506,10 @@ func TestDecodeSessionBase64Invalid(t *testing.T) {
 
 	Convey("Given the session string isn't base64 encoded", t, func() {
 
-		req, _ := http.NewRequest("GET", "teststuff", nil)
-
 		s := NewStore(nil, getStoreConfig())
 
 		Convey("When the Store tries to decode it", func() {
-			decodedSession, err := s.decodeSession(req, "Hello")
+			decodedSession, err := s.decodeSession("Hello")
 
 			Convey("Then I should have a blank decoded session", func() {
 				So(decodedSession, ShouldBeNil)
@@ -621,13 +529,11 @@ func TestDecodeSessionMessagepackInvalid(t *testing.T) {
 
 	Convey("Given the session string isn't messagepack encoded", t, func() {
 
-		req, _ := http.NewRequest("GET", "teststuff", nil)
-
 		s := NewStore(nil, getStoreConfig())
 
 		Convey("When the Store tries to decode it", func() {
 
-			decodedSession, err := s.decodeSession(req, "SGVsbG8=")
+			decodedSession, err := s.decodeSession("SGVsbG8=")
 
 			Convey("Then I should have a blank decoded session", func() {
 
@@ -648,41 +554,29 @@ func TestDecodeSessionMessagepackInvalid(t *testing.T) {
 // cookie signature
 func TestLoadErrorInValidateSignature(t *testing.T) {
 
-	Convey("Given I have a session cookie", t, func() {
+	Convey("Given I have a session ID less than the desired length", t, func() {
 
-		config := &StoreConfig{cookieName: "Test"}
+		sessionID := strings.Repeat("a", cookieValueLength-1)
 
-		cookie := &http.Cookie{}
-		cookie.Name = config.cookieName
+		Convey("And Redis throws no further errors", func() {
 
-		Convey("With an invalid signature", func() {
+			connection := &mockState.Connection{}
+			connection.On("Del", "").Return(redis.NewIntResult(0, nil))
 
-			cookie.Value = strings.Repeat("a", cookieValueLength-1)
+			cache := &Cache{connection: connection}
 
-			Convey("And I submit a request", func() {
+			Convey("When I attempt to load the session", func() {
 
-				req, _ := http.NewRequest("GET", "teststuff", nil)
-				req.AddCookie(cookie)
+				config := &StoreConfig{}
 
-				Convey("Given Redis throws no further errors", func() {
+				s := NewStore(cache, config)
 
-					connection := &mockState.Connection{}
-					connection.On("Del", "").Return(redis.NewIntResult(0, nil))
+				err := s.Load(sessionID)
 
-					cache := &Cache{connection: connection}
+				Convey("Then an error should be thrown whilst decoding the session", func() {
 
-					Convey("When I attempt to load the session", func() {
-
-						s := NewStore(cache, config)
-
-						err := s.Load(req)
-
-						Convey("Then an error should be thrown whilst decoding the session", func() {
-
-							So(err, ShouldNotBeNil)
-							So(err.Error(), ShouldEqual, "Cookie signature is less than the desired cookie length")
-						})
-					})
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "Cookie signature is less than the desired cookie length")
 				})
 			})
 		})
@@ -693,48 +587,35 @@ func TestLoadErrorInValidateSignature(t *testing.T) {
 // data from Redis
 func TestLoadErrorRetrievingSession(t *testing.T) {
 
-	Convey("Given I have a session cookie", t, func() {
+	Convey("Given I have a valid session ID", t, func() {
 
-		config := &StoreConfig{cookieName: "Test", cookieSecret: "bbbbbbbbbbbbbbb"}
+		config := &StoreConfig{CookieSecret: "bbbbbbbbbbbbbbb"}
 
-		cookie := &http.Cookie{}
-		cookie.Name = config.cookieName
+		id := strings.Repeat("a", signatureStart)
 
-		Convey("With a valid signature", func() {
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
+		signature := encoding.EncodeBase64(signatureByte[:])
 
-			cookieValue := strings.Repeat("a", signatureStart)
+		sessionID := id + signature
 
-			signatureByte := encoding.GenerateSha1Sum([]byte(cookieValue + config.cookieSecret))
-			signature := encoding.EncodeBase64(signatureByte[:])
+		Convey("If Redis returns an error", func() {
 
-			cookie.Value = cookieValue + signature
+			connection := &mockState.Connection{}
+			connection.On("Get", id).Return(redis.NewStringResult("",
+				errors.New("Error retrieving session data")))
 
-			Convey("And I submit a request", func() {
+			cache := &Cache{connection: connection}
 
-				req, _ := http.NewRequest("GET", "teststuff", nil)
+			Convey("When I attempt to load the session", func() {
 
-				req.AddCookie(cookie)
+				s := NewStore(cache, config)
 
-				Convey("If Redis returns an error", func() {
+				err := s.Load(sessionID)
 
-					connection := &mockState.Connection{}
-					connection.On("Get", cookieValue).Return(redis.NewStringResult("",
-						errors.New("Error retrieving session data")))
+				Convey("Then an error should be thrown whilst decoding the session", func() {
 
-					cache := &Cache{connection: connection}
-
-					Convey("When I attempt to load the session", func() {
-
-						s := NewStore(cache, config)
-
-						err := s.Load(req)
-
-						Convey("Then an error should be thrown whilst decoding the session", func() {
-
-							So(err, ShouldNotBeNil)
-							So(err.Error(), ShouldEqual, "Error retrieving session data")
-						})
-					})
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "Error retrieving session data")
 				})
 			})
 		})
@@ -745,47 +626,34 @@ func TestLoadErrorRetrievingSession(t *testing.T) {
 // data on load
 func TestLoadErrorDecodingSession(t *testing.T) {
 
-	Convey("Given I have a session cookie", t, func() {
+	Convey("Given I have a valid session ID", t, func() {
 
-		config := &StoreConfig{cookieName: "Test", cookieSecret: "bbbbbbbbbbbbbbb"}
+		config := &StoreConfig{CookieSecret: "bbbbbbbbbbbbbbb"}
 
-		cookie := &http.Cookie{}
-		cookie.Name = config.cookieName
+		id := strings.Repeat("a", signatureStart)
 
-		Convey("With a valid signature", func() {
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
+		signature := encoding.EncodeBase64(signatureByte[:])
 
-			cookieValue := strings.Repeat("a", signatureStart)
+		sessionID := id + signature
 
-			signatureByte := encoding.GenerateSha1Sum([]byte(cookieValue + config.cookieSecret))
-			signature := encoding.EncodeBase64(signatureByte[:])
+		Convey("If Redis returns blank data", func() {
 
-			cookie.Value = cookieValue + signature
+			connection := &mockState.Connection{}
+			connection.On("Get", id).Return(redis.NewStringResult("", nil))
 
-			Convey("And I submit a request", func() {
+			cache := &Cache{connection: connection}
 
-				req, _ := http.NewRequest("GET", "teststuff", nil)
+			Convey("When I attempt to load the session", func() {
 
-				req.AddCookie(cookie)
+				s := NewStore(cache, config)
 
-				Convey("If Redis returns blank data", func() {
+				err := s.Load(sessionID)
 
-					connection := &mockState.Connection{}
-					connection.On("Get", cookieValue).Return(redis.NewStringResult("", nil))
+				Convey("Then an error should be thrown whilst decoding the session", func() {
 
-					cache := &Cache{connection: connection}
-
-					Convey("When I attempt to load the session", func() {
-
-						s := NewStore(cache, config)
-
-						err := s.Load(req)
-
-						Convey("Then an error should be thrown whilst decoding the session", func() {
-
-							So(err, ShouldNotBeNil)
-							So(err.Error(), ShouldEqual, "EOF")
-						})
-					})
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "EOF")
 				})
 			})
 		})

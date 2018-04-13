@@ -3,12 +3,12 @@ package state
 import (
 	"crypto/rand"
 	"errors"
-	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/companieshouse/chs.go/log"
 	"github.com/companieshouse/go-session-handler/encoding"
+	session "github.com/companieshouse/go-session-handler/session"
 )
 
 //Multiples of 3 bytes avoids = padding in base64 string
@@ -20,20 +20,20 @@ const cookieValueLength = signatureStart + signatureLength
 
 //Store is the struct that is used to load/store the session.
 type Store struct {
-	ID         string
-	Expiration uint64
-	Expires    uint64
-	Data       map[string]interface{}
-	cache      *Cache
-	config     *StoreConfig
+	ID      string
+	Expires uint64
+	Data    session.SessionData
+	cache   *Cache
+	config  *StoreConfig
 }
 
 //StoreConfig holds the necessary config required for the Store object to be able
 //to perform the various actions.
 type StoreConfig struct {
-	defaultExpiration string
-	cookieName        string
-	cookieSecret      string
+	gofigure          interface{} `order:"env,flag"`
+	DefaultExpiration string      `env:"DEFAULT_EXPIRATION"		flag:"default-expiration"   flagDesc:"Default Expiration"`
+	CookieName        string      `env:"COOKIE_NAME"					flag:"cookie-name"          flagDesc:"Cookie Name"`
+	CookieSecret      string      `env:"COOKIE_SECRET"				flag:"cookie-secret"        flagDesc:"Cookie Secret"`
 }
 
 //NewStore will properly initialise a new Store object.
@@ -45,46 +45,45 @@ func NewStore(cache *Cache, config *StoreConfig) *Store {
 func NewStoreConfig(defaultExpiration string, cookieName string, cookieSecret string) *StoreConfig {
 
 	return &StoreConfig{
-		defaultExpiration: defaultExpiration,
-		cookieName:        cookieName,
-		cookieSecret:      cookieSecret,
+		DefaultExpiration: defaultExpiration,
+		CookieName:        cookieName,
+		CookieSecret:      cookieSecret,
 	}
 }
 
 //Load is used to try and get a session from the cache. If it succeeds it will
 //load the session, otherwise it will return an error.
-func (s *Store) Load(req *http.Request) error {
+func (s *Store) Load(sessionID string) error {
 
-	cookie := s.getCookieFromRequest(req)
-
-	err := s.validateCookieSignature(req, cookie.Value)
-
+	err := s.validateSessionID(sessionID)
 	if err != nil {
+		log.Error(err)
 		return err
 	}
 
-	s.extractAndValidateCookieSignatureParts(req, cookie.Value)
+	s.extractAndValidateSessionIDParts(sessionID)
 
-	storedSession, err := s.getStoredSession(req)
-
+	storedSession, err := s.getStoredSession()
 	if err != nil {
+		log.Error(err)
 		return err
 	}
 
-	s.Data, err = s.decodeSession(req, storedSession)
-
+	s.Data, err = s.decodeSession(storedSession)
 	if err != nil {
+		log.Error(err)
 		return err
 	}
 
 	//Create a new session if the data is nil
 	if s.Data == nil {
-		s.Clear(req)
+		s.Clear()
 		return nil
 	}
 
-	err = s.validateExpiration(req)
+	err = s.validateExpiration()
 	if err != nil {
+		log.Error(err)
 		return err
 	}
 
@@ -93,8 +92,6 @@ func (s *Store) Load(req *http.Request) error {
 
 // Store will take a store struct, validate it, and attempt to save it
 func (s *Store) Store() error {
-
-	log.Info("Attempting to store session with the following data: ", s.Data)
 
 	if err := s.validateSession(); err != nil {
 		log.Error(err)
@@ -120,7 +117,7 @@ func (s *Store) Store() error {
 //does not clear the loaded session. The Clear method will take care of that.
 //If the string passed in is nil, it will delete the session with an id the same
 //as that of s.ID
-func (s *Store) Delete(req *http.Request, id *string) error {
+func (s *Store) Delete(id *string) error {
 	sessionID := s.ID
 
 	if id != nil && len(*id) > 0 {
@@ -128,9 +125,8 @@ func (s *Store) Delete(req *http.Request, id *string) error {
 	}
 
 	err := s.cache.deleteSessionData(sessionID)
-
 	if err != nil {
-		log.InfoR(req, err.Error())
+		log.Error(err)
 		return err
 	}
 
@@ -139,8 +135,8 @@ func (s *Store) Delete(req *http.Request, id *string) error {
 
 //Clear destroys the current loaded session and removes it from the backing
 //store. It will also regenerate the session ID.
-func (s *Store) Clear(req *http.Request) error {
-	err := s.Delete(req, nil) //Delete the previously stored Session
+func (s *Store) Clear() error {
+	err := s.Delete(nil) //Delete the previously stored Session
 	if err != nil {
 		return err
 	}
@@ -164,7 +160,7 @@ func (s *Store) regenerateID() error {
 //generateSignature will generate a new signature based on the Store ID and
 //the cookie secret.
 func (s *Store) generateSignature() string {
-	sum := encoding.GenerateSha1Sum([]byte(s.ID + s.config.cookieSecret))
+	sum := encoding.GenerateSha1Sum([]byte(s.ID + s.config.CookieSecret))
 	return encoding.EncodeBase64(sum[:])
 }
 
@@ -174,19 +170,9 @@ func (s *Store) setupExpiration() error {
 
 	now := uint64(time.Now().Unix())
 
-	expirationPeriod := s.Expiration
-	var err error
-
-	if expirationPeriod == 0 {
-		expirationPeriod, err = strconv.ParseUint(s.config.defaultExpiration, 0, 64)
-
-		if err != nil {
-			log.Info(err.Error())
-			return err
-		}
-
-		log.Info("Setting expiration period on session ID: " + s.ID + " to " +
-			strconv.FormatUint(expirationPeriod, 10) + " seconds")
+	expirationPeriod, err := strconv.ParseUint(s.config.DefaultExpiration, 0, 64)
+	if err != nil {
+		return err
 	}
 
 	s.Expires = now + expirationPeriod
@@ -220,32 +206,13 @@ func (s *Store) validateSession() error {
 	return nil
 }
 
-//getCookieFromRequest will attempt to pull the Cookie from the request. If err
-//is not nil, it will create a new Cookie and return that instead.
-func (s *Store) getCookieFromRequest(req *http.Request) *http.Cookie {
-
-	var cookie *http.Cookie
-	var err error
-
-	if cookie, err = req.Cookie(s.config.cookieName); err != nil {
-		log.InfoR(req, err.Error())
-		cookie = &http.Cookie{}
-	}
-
-	return cookie
-}
-
 //validateCookieSignature will try to validate that the length of the Cookie
 //value is less than the calculated length of the signature
-func (s *Store) validateCookieSignature(req *http.Request, cookieSignature string) error {
+func (s *Store) validateSessionID(sessionID string) error {
 
-	if len(cookieSignature) < cookieValueLength {
-		err := errors.New("Cookie signature is less than the desired cookie length")
-		log.InfoR(req, err.Error())
-
-		s.Clear(req)
-
-		return err
+	if len(sessionID) < cookieValueLength {
+		s.Clear()
+		return errors.New("Cookie signature is less than the desired cookie length")
 	}
 
 	return nil
@@ -254,24 +221,22 @@ func (s *Store) validateCookieSignature(req *http.Request, cookieSignature strin
 //extractAndValidateCookieSignatureParts will split the cookieSignature into
 //two parts, and set the first part to s.ID, with the second part being validated
 //against a generated ID.
-func (s *Store) extractAndValidateCookieSignatureParts(req *http.Request, cookieSignature string) {
-	s.ID = cookieSignature[0:signatureStart]
-	sig := cookieSignature[signatureStart:len(cookieSignature)]
+func (s *Store) extractAndValidateSessionIDParts(sessionID string) {
+	s.ID = sessionID[0:signatureStart]
+	sig := sessionID[signatureStart:len(sessionID)]
 
 	//Validate signature is the same
 	if sig != s.generateSignature() {
-		s.Clear(req)
+		s.Clear()
 		return
 	}
 }
 
 //getStoredSession will get the session from the Cache
-func (s *Store) getStoredSession(req *http.Request) (string, error) {
+func (s *Store) getStoredSession() (string, error) {
 
 	storedSession, err := s.cache.getSessionData(s.ID)
-
 	if err != nil {
-		log.InfoR(req, err.Error())
 		return "", err
 	}
 
@@ -279,18 +244,15 @@ func (s *Store) getStoredSession(req *http.Request) (string, error) {
 }
 
 //decodeSession will try to base64 decode the session and then msgpack decode it.
-func (s *Store) decodeSession(req *http.Request, session string) (map[string]interface{}, error) {
-	base64DecodedSession, err := encoding.DecodeBase64(session)
+func (s *Store) decodeSession(session string) (map[string]interface{}, error) {
 
+	base64DecodedSession, err := encoding.DecodeBase64(session)
 	if err != nil {
-		log.InfoR(req, err.Error())
 		return nil, err
 	}
 
 	msgpackDecodedSession, err := encoding.DecodeMsgPack(base64DecodedSession)
-
 	if err != nil {
-		log.InfoR(req, err.Error())
 		return nil, err
 	}
 
@@ -299,9 +261,9 @@ func (s *Store) decodeSession(req *http.Request, session string) (map[string]int
 
 //validateExpiration validates that the Expires and Expiration values on the
 //Store object are valid, and sets them if required.
-func (s *Store) validateExpiration(req *http.Request) error {
-	s.Expiration = s.Data["expiration"].(uint64)
-	s.Expires = s.Data["expires"].(uint64)
+func (s *Store) validateExpiration() error {
+
+	s.Expires = uint64(s.Data["expires"].(uint32))
 
 	if s.Expires == uint64(0) {
 		s.setupExpiration()
