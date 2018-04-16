@@ -8,7 +8,7 @@ import (
 
 type SessionData map[string]interface{}
 
-func (data *SessionData) getAccessToken() string {
+func (data *SessionData) GetAccessToken() string {
 	signinInfo := (*data)["signin_info"].(map[string]interface{})
 	accessTokenMap := (signinInfo)["access_token"].(map[string]interface{})
 	return (accessTokenMap)["access_token"].(string)
@@ -35,7 +35,7 @@ func (data *SessionData) SetAccessToken(accessToken string) {
 
 func (s *SessionData) GetOauth2Token() *goauth2.Token {
 	if s.isSignedIn() {
-		tok := &goauth2.Token{AccessToken: s.getAccessToken(),
+		tok := &goauth2.Token{AccessToken: s.GetAccessToken(),
 			RefreshToken: s.getRefreshToken(),
 			Expiry:       time.Now(), //Replace with actual session expiry
 		}

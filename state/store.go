@@ -157,9 +157,9 @@ func (s *Store) regenerateID() error {
 	return nil
 }
 
-//generateSignature will generate a new signature based on the Store ID and
+//GenerateSignature will generate a new signature based on the Store ID and
 //the cookie secret.
-func (s *Store) generateSignature() string {
+func (s *Store) GenerateSignature() string {
 	sum := encoding.GenerateSha1Sum([]byte(s.ID + s.config.CookieSecret))
 	sig := encoding.EncodeBase64(sum[:])
 	//Substring applied here to accomodate for base64 encoded padding of '='
@@ -228,7 +228,7 @@ func (s *Store) extractAndValidateSessionIDParts(sessionID string) {
 	sig := sessionID[signatureStart:len(sessionID)]
 
 	//Validate signature is the same
-	if sig != s.generateSignature() {
+	if sig != s.GenerateSignature() {
 		s.Clear()
 		return
 	}

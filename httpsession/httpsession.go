@@ -9,6 +9,7 @@ import (
 	"github.com/companieshouse/chs.go/log"
 	session "github.com/companieshouse/go-session-handler/session"
 	"github.com/companieshouse/go-session-handler/state"
+	"github.com/ian-kent/gofigure"
 	"github.com/justinas/alice"
 	redis "gopkg.in/redis.v5"
 )
@@ -25,16 +26,18 @@ func Register(c alice.Chain) alice.Chain {
 	return c.Append(func(h http.Handler) http.Handler { return handler(h) })
 }
 
-// loadSession initialises a Store using config and cache structs, loads the
+// handler initialises a Store using config and cache structs, loads the
 // session, and stores it on the request context to access later
 func handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
 		// Init all config
-		config := &state.StoreConfig{
-			CookieName:        os.Getenv("COOKIE_NAME"),
-			CookieSecret:      os.Getenv("COOKIE_SECRET"),
-			DefaultExpiration: os.Getenv("DEFAULT_EXPIRATION"),
+		var config state.StoreConfig
+		err := gofigure.Gofigure(&config)
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
@@ -43,13 +46,18 @@ func handler(h http.Handler) http.Handler {
 			redisDB = 0
 		}
 
-		cache, _ := state.NewCache(&redis.Options{
+		cache, err := state.NewCache(&redis.Options{
 			Addr:     os.Getenv("REDIS_SERVER"),
 			Password: os.Getenv("REDIS_PASSWORD"),
 			DB:       redisDB,
 		})
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-		s := state.NewStore(cache, config)
+		s := state.NewStore(cache, &config)
 
 		// Pull session ID from the cookie on the request
 		sessionID := getSessionIDFromRequest(config.CookieName, req)
@@ -71,24 +79,31 @@ func handler(h http.Handler) http.Handler {
 		s.Data = sessionData
 		s.Store()
 
-		//TODO: Update the session cookie here using setSessionIDOnRequest
+		setSessionIDOnResponse(w, s)
+
+		return
 	})
 }
 
-//getSessionIDFromRequest will attempt to pull the Cookie from the request. If err
-//is not nil, it will create a new Cookie and return that instead.
+//getSessionIDFromRequest will attempt to pull the session ID from the cookie on
+//the request. If err is not nil, an empty string will be returned instead.
 func getSessionIDFromRequest(cookieName string, req *http.Request) string {
 
 	cookie, err := req.Cookie(cookieName)
 	if err != nil {
 		log.InfoR(req, err.Error())
-		cookie = &http.Cookie{}
+		return ""
 	}
 
 	return cookie.Value
 }
 
-func setSessionIDOnRequest(w http.ResponseWriter) {
-	cookie := &http.Cookie{} //TODO: construct cookie to store on the response
+//setSessionIDOnResponse will refresh the session cookie in case the ID has been
+//changed since load
+func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store) {
+	cookie := &http.Cookie{
+		Value: s.ID + s.GenerateSignature(),
+		Name:  os.Getenv("COOKIE_NAME"),
+	}
 	http.SetCookie(w, cookie)
 }
