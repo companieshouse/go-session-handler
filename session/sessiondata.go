@@ -28,9 +28,9 @@ func (data *SessionData) isSignedIn() bool {
 }
 
 func (data *SessionData) SetAccessToken(accessToken string) {
-	signinInfo := (*data)["signin_info"].(SessionData)
-	accessTokenMap := (signinInfo)["access_token"].(SessionData)
-	(accessTokenMap)["access_token"] = accessToken
+	signinInfo := (*data)["signin_info"].(map[string]interface{})
+	accessTokenMap := signinInfo["access_token"].(map[string]interface{})
+	accessTokenMap["access_token"] = accessToken
 }
 
 func (s *SessionData) GetOauth2Token() *goauth2.Token {

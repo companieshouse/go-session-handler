@@ -161,7 +161,9 @@ func (s *Store) regenerateID() error {
 //the cookie secret.
 func (s *Store) generateSignature() string {
 	sum := encoding.GenerateSha1Sum([]byte(s.ID + s.config.CookieSecret))
-	return encoding.EncodeBase64(sum[:])
+	sig := encoding.EncodeBase64(sum[:])
+	//Substring applied here to accomodate for base64 encoded padding of '='
+	return sig[0:signatureLength]
 }
 
 //setupExpiration will set the 'Expires' variable against the Store

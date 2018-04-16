@@ -589,14 +589,14 @@ func TestLoadErrorRetrievingSession(t *testing.T) {
 
 	Convey("Given I have a valid session ID", t, func() {
 
-		config := &StoreConfig{CookieSecret: "bbbbbbbbbbbbbbb"}
+		config := &StoreConfig{CookieSecret: strings.Repeat("b", signatureLength)}
 
 		id := strings.Repeat("a", signatureStart)
 
 		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
 		signature := encoding.EncodeBase64(signatureByte[:])
 
-		sessionID := id + signature
+		sessionID := id + signature[0:signatureLength]
 
 		Convey("If Redis returns an error", func() {
 
@@ -628,14 +628,14 @@ func TestLoadErrorDecodingSession(t *testing.T) {
 
 	Convey("Given I have a valid session ID", t, func() {
 
-		config := &StoreConfig{CookieSecret: "bbbbbbbbbbbbbbb"}
+		config := &StoreConfig{CookieSecret: strings.Repeat("b", signatureLength)}
 
 		id := strings.Repeat("a", signatureStart)
 
 		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
 		signature := encoding.EncodeBase64(signatureByte[:])
 
-		sessionID := id + signature
+		sessionID := id + signature[0:signatureLength]
 
 		Convey("If Redis returns blank data", func() {
 
