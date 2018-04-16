@@ -4,14 +4,12 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/companieshouse/chs.go/log"
 	session "github.com/companieshouse/go-session-handler/session"
 	"github.com/companieshouse/go-session-handler/state"
 	"github.com/ian-kent/gofigure"
 	"github.com/justinas/alice"
-	redis "gopkg.in/redis.v5"
 )
 
 // Type for creating context keys
@@ -40,17 +38,15 @@ func handler(h http.Handler) http.Handler {
 			return
 		}
 
-		redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
+		var redisOptions state.RedisOptions
+		err = gofigure.Gofigure(&redisOptions)
 		if err != nil {
 			log.Error(err)
-			redisDB = 0
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
-		cache, err := state.NewCache(&redis.Options{
-			Addr:     os.Getenv("REDIS_SERVER"),
-			Password: os.Getenv("REDIS_PASSWORD"),
-			DB:       redisDB,
-		})
+		cache, err := state.NewCache(redisOptions.Parse())
 		if err != nil {
 			log.Error(err)
 			w.WriteHeader(http.StatusInternalServerError)

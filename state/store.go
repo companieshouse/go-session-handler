@@ -42,15 +42,6 @@ func NewStore(cache *Cache, config *StoreConfig) *Store {
 	return &Store{cache: cache, config: config}
 }
 
-func NewStoreConfig(defaultExpiration string, cookieName string, cookieSecret string) *StoreConfig {
-
-	return &StoreConfig{
-		DefaultExpiration: defaultExpiration,
-		CookieName:        cookieName,
-		CookieSecret:      cookieSecret,
-	}
-}
-
 //Load is used to try and get a session from the cache. If it succeeds it will
 //load the session, otherwise it will return an error.
 func (s *Store) Load(sessionID string) error {
