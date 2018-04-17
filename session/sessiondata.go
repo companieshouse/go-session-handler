@@ -1,4 +1,4 @@
-package httpsession
+package session
 
 import (
 	"time"
