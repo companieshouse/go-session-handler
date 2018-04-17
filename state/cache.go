@@ -22,6 +22,21 @@ type Cache struct {
 	connection Connection
 }
 
+type RedisOptions struct {
+	gofigure interface{} `order:"env,flag"`
+	Addr     string      `env:"REDIS_SERVER"		flag:"redis-server"   flagDesc:"Redis Server"`
+	Password string      `env:"REDIS_PASSWORD"		flag:"redis-password"   flagDesc:"Redis Password"`
+	DB       int         `env:"REDIS_DB"		flag:"redis-db"   flagDesc:"Redis DB"`
+}
+
+func (r *RedisOptions) Parse() *redis.Options {
+	return &redis.Options{
+		Addr:     r.Addr,
+		Password: r.Password,
+		DB:       r.DB,
+	}
+}
+
 //NewCache will properly initialise a new Cache object.
 func NewCache(connectionInfo *redis.Options) (*Cache, error) {
 	cache := &Cache{}
