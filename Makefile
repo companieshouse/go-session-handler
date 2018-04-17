@@ -9,6 +9,7 @@ all: test lint
 
 .PHONY: test
 test:
+	go get ./...
 	go test ./...
 
 .PHONY: lint
