@@ -69,7 +69,7 @@ func handler(h http.Handler) http.Handler {
 			}
 		}
 
-		ctx := context.WithValue(context.Background(), ContextKeySession, sessionData)
+		ctx := context.WithValue(context.Background(), ContextKeySession, &sessionData)
 		req = req.WithContext(ctx)
 		h.ServeHTTP(w, req)
 
@@ -107,4 +107,8 @@ func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store) {
 		Name:  os.Getenv("COOKIE_NAME"),
 	}
 	http.SetCookie(w, cookie)
+}
+
+func GetSessionDataFromRequest(req *http.Request) *session.SessionData {
+	return req.Context().Value(ContextKeySession).(*session.SessionData)
 }
