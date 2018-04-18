@@ -33,7 +33,7 @@ func handler(h http.Handler) http.Handler {
 		var config state.StoreConfig
 		err := gofigure.Gofigure(&config)
 		if err != nil {
-			log.Error(err)
+			log.ErrorR(req, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -41,14 +41,14 @@ func handler(h http.Handler) http.Handler {
 		var redisOptions state.RedisOptions
 		err = gofigure.Gofigure(&redisOptions)
 		if err != nil {
-			log.Error(err)
+			log.ErrorR(req, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		cache, err := state.NewCache(redisOptions.Parse())
 		if err != nil {
-			log.Error(err)
+			log.ErrorR(req, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -64,6 +64,8 @@ func handler(h http.Handler) http.Handler {
 
 			if err := s.Load(sessionID); err == nil {
 				sessionData = s.Data
+			} else {
+				log.ErrorR(req, err)
 			}
 		}
 
@@ -73,7 +75,10 @@ func handler(h http.Handler) http.Handler {
 
 		// Upon returning, store the updated session
 		s.Data = sessionData
-		s.Store()
+		err = s.Store()
+		if err != nil {
+			log.ErrorR(req, err)
+		}
 
 		setSessionIDOnResponse(w, s)
 
@@ -87,7 +92,7 @@ func getSessionIDFromRequest(cookieName string, req *http.Request) string {
 
 	cookie, err := req.Cookie(cookieName)
 	if err != nil {
-		log.InfoR(req, err.Error())
+		log.ErrorR(req, err)
 		return ""
 	}
 

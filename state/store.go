@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/companieshouse/chs.go/log"
 	"github.com/companieshouse/go-session-handler/encoding"
 	session "github.com/companieshouse/go-session-handler/session"
 )
@@ -48,7 +47,6 @@ func (s *Store) Load(sessionID string) error {
 
 	err := s.validateSessionID(sessionID)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -56,13 +54,11 @@ func (s *Store) Load(sessionID string) error {
 
 	storedSession, err := s.getStoredSession()
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	s.Data, err = s.decodeSession(storedSession)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -74,7 +70,6 @@ func (s *Store) Load(sessionID string) error {
 
 	err = s.validateExpiration()
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -85,22 +80,18 @@ func (s *Store) Load(sessionID string) error {
 func (s *Store) Store() error {
 
 	if err := s.validateSession(); err != nil {
-		log.Error(err)
 		return err
 	}
 
 	encodedData, err := s.encodeSessionData()
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
 	if err := s.setSession(encodedData); err != nil {
-		log.Error(err)
 		return err
 	}
 
-	log.Info("Session data successfully stored with ID: " + s.ID)
 	return nil
 }
 
@@ -117,7 +108,6 @@ func (s *Store) Delete(id *string) error {
 
 	err := s.cache.deleteSessionData(sessionID)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
