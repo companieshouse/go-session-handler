@@ -2,6 +2,7 @@ package session
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -107,8 +108,10 @@ func TestGetOauth2TokenUserSignedIn(t *testing.T) {
 	Convey("Given I have session data for a signed-in session", t, func() {
 		accessToken := "Foo"
 		refreshToken := "Bar"
+		expiry := uint32(12345)
 
 		var sessionData SessionData = map[string]interface{}{
+			"expires": expiry,
 			"signin_info": map[string]interface{}{
 				"signed_in": int8(1),
 				"access_token": map[string]interface{}{
@@ -130,6 +133,7 @@ func TestGetOauth2TokenUserSignedIn(t *testing.T) {
 
 					So(tok.AccessToken, ShouldEqual, accessToken)
 					So(tok.RefreshToken, ShouldEqual, refreshToken)
+					So(tok.Expiry, ShouldEqual, time.Unix(int64(expiry), 0))
 				})
 			})
 		})

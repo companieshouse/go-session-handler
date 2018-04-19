@@ -20,6 +20,11 @@ func (data *SessionData) getRefreshToken() string {
 	return (accessTokenMap)["refresh_token"].(string)
 }
 
+func (data *SessionData) getExpiry() time.Time {
+	expiry := (*data)["expires"].(uint32)
+	return time.Unix(int64(expiry), 0)
+}
+
 func (data *SessionData) isSignedIn() bool {
 	signinInfo := (*data)["signin_info"].(map[string]interface{})
 	signedInFlag := signinInfo["signed_in"]
@@ -37,7 +42,7 @@ func (s *SessionData) GetOauth2Token() *goauth2.Token {
 	if s.isSignedIn() {
 		tok := &goauth2.Token{AccessToken: s.GetAccessToken(),
 			RefreshToken: s.getRefreshToken(),
-			Expiry:       time.Now(), //Replace with actual session expiry
+			Expiry:       s.getExpiry(),
 		}
 
 		return tok
