@@ -8,6 +8,8 @@ import (
 
 	"github.com/companieshouse/go-session-handler/encoding"
 	session "github.com/companieshouse/go-session-handler/session"
+	"github.com/ian-kent/go-log/log"
+	redis "gopkg.in/redis.v5"
 )
 
 //Multiples of 3 bytes avoids = padding in base64 string
@@ -46,31 +48,41 @@ func NewStore(cache *Cache, config *StoreConfig) *Store {
 func (s *Store) Load(sessionID string) error {
 
 	err := s.validateSessionID(sessionID)
+
+	// If validateSessionID returns an error, we need to return an empty session
+	// That said, no exceptions have occured so return a nil error
+	if err != nil {
+		log.Trace(err.Error())
+		return nil
+	}
+
+	session, err := s.fetchSession()
+	if err != nil {
+		if err == redis.Nil {
+			//If the session isn't stored in Redis, clear any data and return nil error
+			s.clearSessionData()
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	s.Data, err = s.decodeSession(session)
 	if err != nil {
 		return err
 	}
 
-	s.extractAndValidateSessionIDParts(sessionID)
-
-	storedSession, err := s.getStoredSession()
-	if err != nil {
-		return err
-	}
-
-	s.Data, err = s.decodeSession(storedSession)
-	if err != nil {
-		return err
-	}
-
-	//Create a new session if the data is nil
+	// Create a new session if the data is nil (not sure how this is possible!)
 	if s.Data == nil {
-		s.Clear()
+		s.clearSessionData()
 		return nil
 	}
 
 	err = s.validateExpiration()
 	if err != nil {
-		return err
+		// If the session has expired, clear the data and return nil
+		s.clearSessionData()
+		return nil
 	}
 
 	return nil
@@ -79,8 +91,24 @@ func (s *Store) Load(sessionID string) error {
 // Store will take a store struct, validate it, and attempt to save it
 func (s *Store) Store() error {
 
-	if err := s.validateSession(); err != nil {
-		return err
+	if s.Data == nil {
+		s.clearSessionData() // Set session data to an empty map rather than nil
+
+		// Since this should never happen, we'll add a log warning
+		log.Warn("Session data was nil for ID " + s.ID)
+		return nil
+	}
+
+	if len(s.ID) == 0 {
+		if err := s.regenerateID(); err != nil {
+			return err
+		}
+	}
+
+	if s.Expires == 0 {
+		if err := s.setupExpiration(); err != nil {
+			return err
+		}
 	}
 
 	encodedData, err := s.encodeSessionData()
@@ -88,7 +116,7 @@ func (s *Store) Store() error {
 		return err
 	}
 
-	if err := s.setSession(encodedData); err != nil {
+	if err := s.storeSession(encodedData); err != nil {
 		return err
 	}
 
@@ -189,38 +217,38 @@ func (s *Store) validateSession() error {
 	return nil
 }
 
-//validateCookieSignature will try to validate that the length of the Cookie
-//value is less than the calculated length of the signature
+// validateSessionID will validate the session ID, ensuring it hasn't been
+// manipulated
 func (s *Store) validateSessionID(sessionID string) error {
 
 	if len(sessionID) < cookieValueLength {
-		s.Clear()
+		s.clearSessionData()
 		return errors.New("Cookie signature is less than the desired cookie length")
 	}
 
-	return nil
-}
-
-//extractAndValidateCookieSignatureParts will split the cookieSignature into
-//two parts, and set the first part to s.ID, with the second part being validated
-//against a generated ID.
-func (s *Store) extractAndValidateSessionIDParts(sessionID string) {
 	s.ID = sessionID[0:signatureStart]
 	sig := sessionID[signatureStart:len(sessionID)]
 
 	//Validate signature is the same
 	if sig != s.GenerateSignature() {
-		s.Clear()
-		return
+		s.clearSessionData()
+		return errors.New("Session signature does not match the expected value! " +
+			"Have " + sig + ", but wanted " + s.GenerateSignature())
 	}
+
+	return nil
 }
 
-//getStoredSession will get the session from the Cache
-func (s *Store) getStoredSession() (string, error) {
+//fetchSession will get the session from the Cache
+func (s *Store) fetchSession() (string, error) {
 
 	storedSession, err := s.cache.getSessionData(s.ID)
 	if err != nil {
-		return "", err
+		if err == redis.Nil {
+			return "", nil
+		} else {
+			return "", err
+		}
 	}
 
 	return storedSession, nil
@@ -255,17 +283,14 @@ func (s *Store) validateExpiration() error {
 	now := uint64(time.Now().Unix())
 
 	if s.Expires <= now {
-		err := errors.New("Store has expired")
-		s.Data = nil
-
-		return err
+		return errors.New("Store has expired")
 	}
 
 	return nil
 }
 
-//setSession will take the valid Store object and save it in Redis
-func (s *Store) setSession(encodedData string) error {
+//storeSession will take the valid Store object and save it in Redis
+func (s *Store) storeSession(encodedData string) error {
 
 	var err error
 	_, err = s.cache.setSessionData(s.ID, encodedData, 0).Result()
@@ -283,4 +308,12 @@ func (s *Store) encodeSessionData() (string, error) {
 
 	b64EncodedData := encoding.EncodeBase64(msgpackEncodedData)
 	return b64EncodedData, nil
+}
+
+func (s *Store) clearSessionData() {
+	s.Data = map[string]interface{}{}
+}
+
+func (s *Store) sessionDataIsEmpty() bool {
+	return s.Data == nil || len(s.Data) == 0
 }

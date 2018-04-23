@@ -18,7 +18,7 @@ func getStoreConfig() *StoreConfig {
 	return &StoreConfig{
 		DefaultExpiration: "60",
 		CookieName:        "TEST",
-		CookieSecret:      "OTHER_TEST",
+		CookieSecret:      strings.Repeat("b", signatureLength),
 	}
 }
 
@@ -40,7 +40,7 @@ func TestSetSessionErrorOnSave(t *testing.T) {
 
 			s := &Store{cache: cache}
 
-			err := s.setSession("")
+			err := s.storeSession("")
 
 			Convey("Then I expect the error to be caught and returned", func() {
 
@@ -71,7 +71,7 @@ func TestGetSessionErrorPath(t *testing.T) {
 
 			s := &Store{cache: cache}
 
-			session, err := s.getStoredSession()
+			session, err := s.fetchSession()
 
 			Convey("Then I expect the error to be caught and returned, and session data should be blank",
 				func() {
@@ -102,7 +102,7 @@ func TestGetSessionHappyPath(t *testing.T) {
 
 			s := &Store{cache: cache}
 
-			session, err := s.getStoredSession()
+			session, err := s.fetchSession()
 
 			Convey("Then I expect the session to be returned, and no errors",
 				func() {
@@ -184,7 +184,7 @@ func TestValidateSessionHappyPath(t *testing.T) {
 
 // ------------------- Routes Through Store() -------------------
 
-// TestStoreErrorInValidateSession - Verify error trapping is enforced if there's an
+// TestStoreErrorInValidateSession - Verify session data is cleared if there's an
 // issue when validating the session data
 func TestStoreErrorInValidateSession(t *testing.T) {
 
@@ -196,10 +196,10 @@ func TestStoreErrorInValidateSession(t *testing.T) {
 
 			err := s.Store()
 
-			Convey("Then I expect the error to be caught and returned", func() {
+			Convey("Then I expect no errors but an empty session map", func() {
 
-				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "No session data to store")
+				So(err, ShouldBeNil)
+				So(s.sessionDataIsEmpty(), ShouldBeTrue)
 			})
 		})
 	})
@@ -292,10 +292,9 @@ func TestValidateExpirationSessionHasExpired(t *testing.T) {
 
 			err := s.validateExpiration()
 
-			Convey("Then an appropriate error is returned and session data is made nil", func() {
+			Convey("Then an appropriate error is returned", func() {
 
 				So(err.Error(), ShouldEqual, "Store has expired")
-				So(s.Data, ShouldBeNil)
 			})
 		})
 	})
@@ -477,18 +476,24 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 	})
 }
 
-// TestValidateCookieSignatureHappyPath - Verify that no errors are thrown when
-// following the validate cookie signature 'happy path'
-func TestValidateCookieSignatureHappyPath(t *testing.T) {
+// TestValidateSessionIDHappyPath - Verify that no errors are thrown when
+// following the validate session ID 'happy path'
+func TestValidateSessionIDHappyPath(t *testing.T) {
 
-	Convey("Given the cookie signature is the desired length", t, func() {
+	Convey("Given the session ID is valid", t, func() {
 
-		sig := strings.Repeat("a", cookieValueLength)
+		config := getStoreConfig()
+
+		id := strings.Repeat("a", signatureStart)
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
+		signature := encoding.EncodeBase64(signatureByte[:])
+
+		sessionID := id + signature[0:signatureLength]
 
 		Convey("When I initialise the Store and try to validate it", func() {
 
-			s := NewStore(nil, getStoreConfig())
-			err := s.validateSessionID(sig)
+			s := NewStore(nil, config)
+			err := s.validateSessionID(sessionID)
 
 			Convey("Then no errors should be returned", func() {
 
@@ -573,10 +578,10 @@ func TestLoadErrorInValidateSignature(t *testing.T) {
 
 				err := s.Load(sessionID)
 
-				Convey("Then an error should be thrown whilst decoding the session", func() {
+				Convey("Then no errors need to be returned, but the session data should be empty", func() {
 
-					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldEqual, "Cookie signature is less than the desired cookie length")
+					So(err, ShouldBeNil)
+					So(s.sessionDataIsEmpty(), ShouldBeTrue)
 				})
 			})
 		})
