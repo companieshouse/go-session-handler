@@ -66,23 +66,25 @@ func handler(h http.Handler) http.Handler {
 				sessionData = s.Data
 			} else {
 				log.ErrorR(req, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
 		}
+
+		// Upon returning, store the updated session
+		defer func() {
+			s.Data = sessionData
+			err = s.Store()
+			if err != nil {
+				log.ErrorR(req, err)
+			}
+
+			setSessionIDOnResponse(w, s)
+		}()
 
 		ctx := context.WithValue(context.Background(), ContextKeySession, &sessionData)
 		req = req.WithContext(ctx)
 		h.ServeHTTP(w, req)
-
-		// Upon returning, store the updated session
-		s.Data = sessionData
-		err = s.Store()
-		if err != nil {
-			log.ErrorR(req, err)
-		}
-
-		setSessionIDOnResponse(w, s)
-
-		return
 	})
 }
 
