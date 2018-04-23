@@ -18,6 +18,9 @@ type ContextKey string
 // Set the context key for the session
 var ContextKeySession = ContextKey("session")
 
+var config state.StoreConfig
+var redisOptions state.RedisOptions
+
 // Register will append an HTTP handler to an Alice chain, whereby the stored
 // session will be loaded and stored on the request context
 func Register(c alice.Chain) alice.Chain {
@@ -30,20 +33,22 @@ func handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
 		// Init all config
-		var config state.StoreConfig
-		err := gofigure.Gofigure(&config)
-		if err != nil {
-			log.ErrorR(req, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		if config.CookieName == "" { // Work out a better way to determine the structs aren't initialised
+			err := gofigure.Gofigure(&config)
+			if err != nil {
+				log.ErrorR(req, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 
-		var redisOptions state.RedisOptions
-		err = gofigure.Gofigure(&redisOptions)
-		if err != nil {
-			log.ErrorR(req, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		if redisOptions.Addr == "" { // Work out a better way to determine the structs aren't initialised
+			err := gofigure.Gofigure(&redisOptions)
+			if err != nil {
+				log.ErrorR(req, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 
 		cache, err := state.NewCache(redisOptions.Parse())
@@ -71,20 +76,17 @@ func handler(h http.Handler) http.Handler {
 			}
 		}
 
-		// Upon returning, store the updated session
-		defer func() {
-			s.Data = sessionData
-			err = s.Store()
-			if err != nil {
-				log.ErrorR(req, err)
-			}
-
-			setSessionIDOnResponse(w, s)
-		}()
-
 		ctx := context.WithValue(context.Background(), ContextKeySession, &sessionData)
 		req = req.WithContext(ctx)
 		h.ServeHTTP(w, req)
+
+		s.Data = sessionData
+		err = s.Store()
+		if err != nil {
+			log.ErrorR(req, err)
+		}
+
+		//setSessionIDOnResponse(w, s) - enable this once working
 	})
 }
 
