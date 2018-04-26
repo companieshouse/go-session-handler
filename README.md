@@ -16,9 +16,32 @@ In order to build this library locally you will need the following:
 
 The library is built using the following commands:
 ```
-go get
+go get ./...
 go build
 ```
+
+## Packages
+The library contains the the following packages:
+- state
+- encoding
+- httpsession
+- session
+
+#### State
+The `state` package handles the loading and storing of the session within the cache. The `store.go` has the functions to deal with
+loading/storing, whilst `cache.go` deals provides an interface for connecting to the cache (in theory this can be replaced with
+another cache that isn't Redis).
+
+#### Encoding
+The `encoding` package wraps a few different encoding libraries to provide standard encoding for our sessions. It provides functions
+for encoding and decoding both [base64](https://golang.org/pkg/encoding/base64/) and [messagepack](https://github.com/vmihailenco/msgpack) encodings.
+
+#### HttpSession
+The `httpsession` package gives the user the ability to register with an [alice chain](https://github.com/justinas/alice) and provide a
+Handler.
+
+### session
+The `session` package provides some useful helper functions to retrieve commonly used Session data from the stored Session map.  
 
 ## Testing
 The library can be tested by running the following in the command line (in the `go-session-handler` directory):
