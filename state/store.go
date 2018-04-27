@@ -179,39 +179,25 @@ func (s *Store) GenerateSignature() string {
 //This should only be called if an expiration is not already set
 func (s *Store) setupExpiration() error {
 
+	var err error
+
 	now := uint64(time.Now().Unix())
 
-	expirationPeriod, err := strconv.ParseUint(s.config.DefaultExpiration, 0, 64)
-	if err != nil {
-		return err
+	// First and foremost, we prioritise the expiration on session data
+	expirationPeriod := s.Data.GetExpiration()
+
+	if expirationPeriod == uint64(0) {
+		// If that's zero, retrieve the default expiration from environment variables
+		expirationPeriod, err = strconv.ParseUint(s.config.DefaultExpiration, 0, 64)
+		if err != nil {
+			return err
+		}
 	}
 
 	s.Expires = now + expirationPeriod
 
 	if s.Data != nil {
 		s.Data["last_access"] = now
-	}
-
-	return nil
-}
-
-//validateSession will be called to authenticate the session store
-func (s *Store) validateSession() error {
-
-	if len(s.ID) == 0 {
-		if err := s.regenerateID(); err != nil {
-			return err
-		}
-	}
-
-	if s.Expires == 0 {
-		if err := s.setupExpiration(); err != nil {
-			return err
-		}
-	}
-
-	if s.Data == nil {
-		return errors.New("No session data to store")
 	}
 
 	return nil

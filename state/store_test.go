@@ -114,74 +114,6 @@ func TestGetSessionHappyPath(t *testing.T) {
 	})
 }
 
-// ------------------- Routes Through validateSession() -------------------
-
-// TestValidateSessionDataIsNil - Verify error trapping if when validating
-// session data, there's no data to store
-func TestValidateSessionDataIsNil(t *testing.T) {
-
-	Convey("Given I initialise a store without any data", t, func() {
-
-		s := NewStore(nil, getStoreConfig())
-
-		Convey("When I validate the store", func() {
-
-			err := s.validateSession()
-
-			Convey("Then I expect an error to be caught and returned", func() {
-
-				So(err, ShouldNotBeNil)
-				So("No session data to store", ShouldEqual, err.Error())
-			})
-		})
-	})
-}
-
-// TestValidateSessionErrorInSetupExpiration - Verify error trapping if there's
-// a problem setting the expiration on the store
-func TestValidateSessionErrorInSetupExpiration(t *testing.T) {
-
-	Convey("Given I haven't set any environment variables and I initialise a store",
-		t, func() {
-
-			s := NewStore(nil, &StoreConfig{})
-
-			Convey("When I validate the store", func() {
-
-				err := s.validateSession()
-
-				Convey("Then I expect an error to be caught and returned", func() {
-
-					So(err, ShouldNotBeNil)
-					So("strconv.ParseUint: parsing \"\": invalid syntax", ShouldEqual, err.Error())
-				})
-			})
-		})
-}
-
-// TestValidateSessionHappyPath - Verify no errors are returned from ValidateSession
-// if the happy path is followed
-func TestValidateSessionHappyPath(t *testing.T) {
-
-	Convey("Given I initialise a store with data", t, func() {
-
-		s := NewStore(nil, getStoreConfig())
-		s.Data = map[string]interface{}{
-			"test": "hello, world!",
-		}
-
-		Convey("When I validate the store", func() {
-
-			err := s.validateSession()
-
-			Convey("Then I expect no errors to be returned", func() {
-
-				So(err, ShouldBeNil)
-			})
-		})
-	})
-}
-
 // ------------------- Routes Through Store() -------------------
 
 // TestStoreErrorInValidateSession - Verify session data is cleared if there's an
@@ -221,6 +153,11 @@ func TestStoreErrorInSetSession(t *testing.T) {
 
 			data := map[string]interface{}{
 				"test": "hello, world!",
+				"signin_info": map[string]interface{}{
+					"access_token": map[string]interface{}{
+						"expires_in": uint16(123),
+					},
+				},
 			}
 
 			s := NewStore(c, getStoreConfig())
@@ -255,6 +192,11 @@ func TestStoreHappyPath(t *testing.T) {
 
 			data := map[string]interface{}{
 				"test": "hello, world!",
+				"signin_info": map[string]interface{}{
+					"access_token": map[string]interface{}{
+						"expires_in": uint16(123),
+					},
+				},
 			}
 
 			s := NewStore(c, getStoreConfig())
@@ -308,7 +250,15 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 
 		s := NewStore(nil, getStoreConfig())
 
-		data := map[string]interface{}{"expires": uint32(0), "expiration": uint64(60)}
+		data := map[string]interface{}{
+			"expires": uint32(0),
+			"signin_info": map[string]interface{}{
+				"access_token": map[string]interface{}{
+					"expires_in": uint16(123),
+				},
+			},
+		}
+
 		s.Data = data
 
 		Convey("Given I call validate expiration on the store", func() {

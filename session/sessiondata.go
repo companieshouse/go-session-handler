@@ -38,6 +38,16 @@ func (data *SessionData) SetAccessToken(accessToken string) {
 	accessTokenMap["access_token"] = accessToken
 }
 
+func (data *SessionData) GetExpiration() uint64 {
+	signinInfo := (*data)["signin_info"].(map[string]interface{})
+	accessTokenMap := (signinInfo)["access_token"].(map[string]interface{})
+	expiration, ok := (accessTokenMap)["expires_in"].(uint16)
+	if !ok {
+		return uint64(0)
+	}
+	return uint64(expiration)
+}
+
 func (s *SessionData) GetOauth2Token() *goauth2.Token {
 	if s.isSignedIn() {
 		tok := &goauth2.Token{AccessToken: s.GetAccessToken(),
