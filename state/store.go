@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/companieshouse/go-session-handler/config"
 	"github.com/companieshouse/go-session-handler/encoding"
 	session "github.com/companieshouse/go-session-handler/session"
 	"github.com/ian-kent/go-log/log"
@@ -25,20 +26,11 @@ type Store struct {
 	Expires uint64
 	Data    session.SessionData
 	cache   *Cache
-	config  *StoreConfig
-}
-
-//StoreConfig holds the necessary config required for the Store object to be able
-//to perform the various actions.
-type StoreConfig struct {
-	gofigure          interface{} `order:"env,flag"`
-	DefaultExpiration string      `env:"DEFAULT_EXPIRATION"		flag:"default-expiration"   flagDesc:"Default Expiration"`
-	CookieName        string      `env:"COOKIE_NAME"					flag:"cookie-name"          flagDesc:"Cookie Name"`
-	CookieSecret      string      `env:"COOKIE_SECRET"				flag:"cookie-secret"        flagDesc:"Cookie Secret"`
+	config  *config.Config
 }
 
 //NewStore will properly initialise a new Store object.
-func NewStore(cache *Cache, config *StoreConfig) *Store {
+func NewStore(cache *Cache, config *config.Config) *Store {
 
 	return &Store{cache: cache, config: config}
 }
@@ -145,11 +137,11 @@ func (s *Store) Delete(id *string) error {
 //Clear destroys the current loaded session and removes it from the backing
 //store. It will also regenerate the session ID.
 func (s *Store) Clear() error {
-	err := s.Delete(nil) //Delete the previously stored Session
+	err := s.Delete(nil) //Delete the previously stored Session because we're going to regenerate the IDS
 	if err != nil {
 		return err
 	}
-	s.Data = nil
+	s.clearSessionData()
 	s.regenerateID()
 	return nil
 }
@@ -230,11 +222,7 @@ func (s *Store) fetchSession() (string, error) {
 
 	storedSession, err := s.cache.getSessionData(s.ID)
 	if err != nil {
-		if err == redis.Nil {
-			return "", nil
-		} else {
-			return "", err
-		}
+		return "", err
 	}
 
 	return storedSession, nil
@@ -296,10 +284,7 @@ func (s *Store) encodeSessionData() (string, error) {
 	return b64EncodedData, nil
 }
 
+// clearSessionData will set the session data to an empty map
 func (s *Store) clearSessionData() {
 	s.Data = map[string]interface{}{}
-}
-
-func (s *Store) sessionDataIsEmpty() bool {
-	return s.Data == nil || len(s.Data) == 0
 }

@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/companieshouse/chs.go/log"
+	"github.com/companieshouse/go-session-handler/config"
 	session "github.com/companieshouse/go-session-handler/session"
 	"github.com/companieshouse/go-session-handler/state"
-	"github.com/ian-kent/gofigure"
 	"github.com/justinas/alice"
 )
 
@@ -17,9 +17,6 @@ type ContextKey string
 
 // Set the context key for the session
 var ContextKeySession = ContextKey("session")
-
-var config state.StoreConfig
-var redisOptions state.RedisOptions
 
 // Register will append an HTTP handler to an Alice chain, whereby the stored
 // session will be loaded and stored on the request context
@@ -33,35 +30,21 @@ func handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
 		// Init all config
-		if config.CookieName == "" { // Work out a better way to determine the structs aren't initialised
-			err := gofigure.Gofigure(&config)
-			if err != nil {
-				log.ErrorR(req, err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		}
+		cfg := config.Get()
 
-		if redisOptions.Addr == "" { // Work out a better way to determine the structs aren't initialised
-			err := gofigure.Gofigure(&redisOptions)
-			if err != nil {
-				log.ErrorR(req, err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		}
+		redisOptions := config.GetRedisOptions()
 
-		cache, err := state.NewCache(redisOptions.Parse())
+		cache, err := state.NewCache(redisOptions)
 		if err != nil {
 			log.ErrorR(req, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		s := state.NewStore(cache, &config)
+		s := state.NewStore(cache, cfg)
 
 		// Pull session ID from the cookie on the request
-		sessionID := getSessionIDFromRequest(config.CookieName, req)
+		sessionID := getSessionIDFromRequest(cfg.CookieName, req)
 		var sessionData session.SessionData
 
 		// If session is stored, retrieve it from Redis

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/companieshouse/go-session-handler/config"
 	"github.com/companieshouse/go-session-handler/encoding"
 	mockState "github.com/companieshouse/go-session-handler/state/mocks"
 	. "github.com/smartystreets/goconvey/convey"
@@ -14,8 +15,8 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
-func getStoreConfig() *StoreConfig {
-	return &StoreConfig{
+func getConfig() *config.Config {
+	return &config.Config{
 		DefaultExpiration: "60",
 		CookieName:        "TEST",
 		CookieSecret:      strings.Repeat("b", signatureLength),
@@ -122,7 +123,7 @@ func TestStoreErrorInValidateSession(t *testing.T) {
 
 	Convey("Given I create a store with no data", t, func() {
 
-		s := NewStore(nil, getStoreConfig())
+		s := NewStore(nil, getConfig())
 
 		Convey("When I store the session", func() {
 
@@ -131,7 +132,7 @@ func TestStoreErrorInValidateSession(t *testing.T) {
 			Convey("Then I expect no errors but an empty session map", func() {
 
 				So(err, ShouldBeNil)
-				So(s.sessionDataIsEmpty(), ShouldBeTrue)
+				So(len(s.Data), ShouldEqual, 0)
 			})
 		})
 	})
@@ -160,7 +161,7 @@ func TestStoreErrorInSetSession(t *testing.T) {
 				},
 			}
 
-			s := NewStore(c, getStoreConfig())
+			s := NewStore(c, getConfig())
 			s.Data = data
 
 			Convey("When I store the session", func() {
@@ -199,7 +200,7 @@ func TestStoreHappyPath(t *testing.T) {
 				},
 			}
 
-			s := NewStore(c, getStoreConfig())
+			s := NewStore(c, getConfig())
 			s.Data = data
 
 			Convey("When I store the session", func() {
@@ -222,7 +223,7 @@ func TestValidateExpirationSessionHasExpired(t *testing.T) {
 
 	Convey("Given I have an expired session", t, func() {
 
-		s := NewStore(nil, getStoreConfig())
+		s := NewStore(nil, getConfig())
 
 		now := uint64(time.Now().Unix())
 		expires := uint32(now - uint64(60))
@@ -248,7 +249,7 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 
 	Convey("Given I have an session store with expires set to 0", t, func() {
 
-		s := NewStore(nil, getStoreConfig())
+		s := NewStore(nil, getConfig())
 
 		data := map[string]interface{}{
 			"expires": uint32(0),
@@ -290,7 +291,7 @@ func TestDeleteErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, getStoreConfig())
+			s := NewStore(cache, getConfig())
 
 			test := "abc"
 
@@ -319,7 +320,7 @@ func TestDeleteHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, getStoreConfig())
+			s := NewStore(cache, getConfig())
 
 			test := "abc"
 
@@ -349,7 +350,7 @@ func TestClearErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, getStoreConfig())
+			s := NewStore(cache, getConfig())
 
 			s.ID = "abc"
 
@@ -377,7 +378,7 @@ func TestClearHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, getStoreConfig())
+			s := NewStore(cache, getConfig())
 
 			s.ID = "abc"
 			s.Data = map[string]interface{}{
@@ -386,12 +387,12 @@ func TestClearHappyPath(t *testing.T) {
 
 			err := s.Clear()
 
-			Convey("Then no error should be returned, data should be nil, and the token should be refreshed",
+			Convey("Then no error should be returned, data should be empty, and the token should be refreshed",
 				func() {
 
 					So(err, ShouldBeNil)
 					So(s.ID, ShouldNotEqual, "abc")
-					So(s.Data, ShouldBeNil)
+					So(len(s.Data), ShouldEqual, 0)
 				})
 		})
 	})
@@ -414,7 +415,7 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 
 			c := &Cache{connection: connection}
 
-			s := NewStore(c, getStoreConfig())
+			s := NewStore(c, getConfig())
 			err := s.validateSessionID(sig)
 
 			Convey("Then an approriate error should be returned", func() {
@@ -432,7 +433,7 @@ func TestValidateSessionIDHappyPath(t *testing.T) {
 
 	Convey("Given the session ID is valid", t, func() {
 
-		config := getStoreConfig()
+		config := getConfig()
 
 		id := strings.Repeat("a", signatureStart)
 		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
@@ -461,7 +462,7 @@ func TestDecodeSessionBase64Invalid(t *testing.T) {
 
 	Convey("Given the session string isn't base64 encoded", t, func() {
 
-		s := NewStore(nil, getStoreConfig())
+		s := NewStore(nil, getConfig())
 
 		Convey("When the Store tries to decode it", func() {
 			decodedSession, err := s.decodeSession("Hello")
@@ -484,7 +485,7 @@ func TestDecodeSessionMessagepackInvalid(t *testing.T) {
 
 	Convey("Given the session string isn't messagepack encoded", t, func() {
 
-		s := NewStore(nil, getStoreConfig())
+		s := NewStore(nil, getConfig())
 
 		Convey("When the Store tries to decode it", func() {
 
@@ -522,7 +523,7 @@ func TestLoadErrorInValidateSignature(t *testing.T) {
 
 			Convey("When I attempt to load the session", func() {
 
-				config := &StoreConfig{}
+				config := getConfig()
 
 				s := NewStore(cache, config)
 
@@ -531,7 +532,7 @@ func TestLoadErrorInValidateSignature(t *testing.T) {
 				Convey("Then no errors need to be returned, but the session data should be empty", func() {
 
 					So(err, ShouldBeNil)
-					So(s.sessionDataIsEmpty(), ShouldBeTrue)
+					So(len(s.Data), ShouldEqual, 0)
 				})
 			})
 		})
@@ -544,7 +545,7 @@ func TestLoadErrorRetrievingSession(t *testing.T) {
 
 	Convey("Given I have a valid session ID", t, func() {
 
-		config := &StoreConfig{CookieSecret: strings.Repeat("b", signatureLength)}
+		config := &config.Config{CookieSecret: strings.Repeat("b", signatureLength)}
 
 		id := strings.Repeat("a", signatureStart)
 
@@ -583,7 +584,7 @@ func TestLoadErrorDecodingSession(t *testing.T) {
 
 	Convey("Given I have a valid session ID", t, func() {
 
-		config := &StoreConfig{CookieSecret: strings.Repeat("b", signatureLength)}
+		config := &config.Config{CookieSecret: strings.Repeat("b", signatureLength)}
 
 		id := strings.Repeat("a", signatureStart)
 
