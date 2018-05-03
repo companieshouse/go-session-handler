@@ -26,7 +26,10 @@ func (data *SessionData) getExpiry() time.Time {
 }
 
 func (data *SessionData) isSignedIn() bool {
-	signinInfo := (*data)["signin_info"].(map[string]interface{})
+	signinInfo, ok := (*data)["signin_info"].(map[string]interface{})
+	if !ok {
+		return false
+	}
 	signedInFlag := signinInfo["signed_in"]
 	signedIn, ok := signedInFlag.(int8)
 	return ok && signedIn == 1

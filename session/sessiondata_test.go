@@ -163,3 +163,74 @@ func TestGetOauth2TokenNotUserSignedIn(t *testing.T) {
 		})
 	})
 }
+
+// TestIsSignedInEmptySessionDataMap verifies that false is returned when
+// checking if an empty session is signed in
+func TestIsSignedInEmptySessionDataMap(t *testing.T) {
+
+	Convey("Given I have an empty session map", t, func() {
+
+		var sessionData SessionData = map[string]interface{}{}
+
+		Convey("When I call isSignedIn", func() {
+
+			signedIn := sessionData.isSignedIn()
+
+			Convey("Then I should return false", func() {
+
+				So(signedIn, ShouldBeFalse)
+			})
+		})
+	})
+}
+
+// TestGetExpirationHappyPath verifies that expiration is returned successfully
+func TestGetExpirationHappyPath(t *testing.T) {
+
+	Convey("Given I have some session data with an 'expires_in' token", t, func() {
+
+		expiresIn := uint16(123)
+
+		var sessionData SessionData = map[string]interface{}{
+			"signin_info": map[string]interface{}{
+				"access_token": map[string]interface{}{
+					"expires_in": expiresIn,
+				},
+			},
+		}
+
+		Convey("When I call GetExpiration", func() {
+
+			expiration := sessionData.GetExpiration()
+
+			Convey("Then expiration should be returned", func() {
+
+				So(expiration, ShouldEqual, uint64(expiresIn))
+			})
+		})
+	})
+}
+
+// TestGetExpirationNonePresent verifies that when expiration is not present on
+// the session, 0 is returned
+func TestGetExpirationNonePresent(t *testing.T) {
+
+	Convey("Given I have some session data with no 'expires_in' token", t, func() {
+
+		var sessionData SessionData = map[string]interface{}{
+			"signin_info": map[string]interface{}{
+				"access_token": map[string]interface{}{},
+			},
+		}
+
+		Convey("When I call GetExpiration", func() {
+
+			expiration := sessionData.GetExpiration()
+
+			Convey("Then 0 should be returned", func() {
+
+				So(expiration, ShouldEqual, uint64(0))
+			})
+		})
+	})
+}
