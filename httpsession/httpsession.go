@@ -64,12 +64,14 @@ func handler(h http.Handler) http.Handler {
 		h.ServeHTTP(w, req)
 
 		s.Data = sessionData
+		log.Info("", log.Data{"Session": sessionData})
+
 		err = s.Store()
 		if err != nil {
 			log.ErrorR(req, err)
 		}
 
-		//setSessionIDOnResponse(w, s) - enable this once working
+		setSessionIDOnResponse(w, s)
 	})
 }
 

@@ -1,6 +1,8 @@
 package session
 
 import (
+	"os"
+	"strconv"
 	"time"
 
 	goauth2 "golang.org/x/oauth2"
@@ -49,6 +51,15 @@ func (data *SessionData) GetExpiration() uint64 {
 		return uint64(0)
 	}
 	return uint64(expiration)
+}
+
+func (data *SessionData) RefreshExpiration() {
+	expiration := data.GetExpiration()
+	if expiration == uint64(0) {
+		expiration, _ = strconv.ParseUint(os.Getenv("DEFAULT_EXPIRATION"), 0, 64)
+	}
+
+	(*data)["expires"] = uint32(uint64(time.Now().Unix()) + expiration)
 }
 
 func (s *SessionData) GetOauth2Token() *goauth2.Token {

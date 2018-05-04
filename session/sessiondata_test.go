@@ -234,3 +234,26 @@ func TestGetExpirationNonePresent(t *testing.T) {
 		})
 	})
 }
+
+// TestRefreshExpiration verifies that once refreshed, expiration is not nil
+func TestRefreshExpiration(t *testing.T) {
+
+	Convey("Given I have some session data", t, func() {
+
+		var sessionData SessionData = map[string]interface{}{
+			"signin_info": map[string]interface{}{
+				"access_token": map[string]interface{}{},
+			},
+		}
+
+		Convey("When I call RefreshExpiration", func() {
+
+			sessionData.RefreshExpiration()
+
+			Convey("Then 'expires' should be set", func() {
+
+				So(sessionData.getExpiry(), ShouldNotBeNil)
+			})
+		})
+	})
+}
