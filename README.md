@@ -55,7 +55,12 @@ Note: this library is not a standalone service, and can only be used within serv
 
 Key | Description | Scope | Mandatory | Default
 ----|-------------|-------|-----------|--------
-COOKIE_SECRET | The shared secret used in validating/calculating the session cookie signature | State | X |
+COOKIE_SECRET | The shared secret used in validating/calculating the session cookie signature | State | Y |
+COOKIE_NAME | The name of the cookie from which to retrieve the session ID | HttpSession | Y |
+DEFAULT_EXPIRATION | Default session expiration in seconds | State | Y |
+REDIS_SERVER | Server address for the Redis database | HttpSession | Y |
+REDIS_DB | The Redis database number (integer) | HttpSession | Y |
+REDIS_PASSWORD | Password to access the Redis database | HttpSession | Y |
 
 
 ## Example library usage
