@@ -1,12 +1,8 @@
 package config
 
 import (
-	"os"
-	"strconv"
-
 	"github.com/companieshouse/chs.go/log"
 	"github.com/ian-kent/gofigure"
-	redis "gopkg.in/redis.v5"
 )
 
 // Config holds the session handler configuration
@@ -15,10 +11,12 @@ type Config struct {
 	DefaultExpiration string      `env:"DEFAULT_EXPIRATION"		flag:"default-expiration"   flagDesc:"Default Expiration"`
 	CookieName        string      `env:"COOKIE_NAME"					flag:"cookie-name"          flagDesc:"Cookie Name"`
 	CookieSecret      string      `env:"COOKIE_SECRET"				flag:"cookie-secret"        flagDesc:"Cookie Secret"`
+	RedisServer       string      `env:"REDIS_SERVER"					flag:"redis-server"        	flagDesc:"Redis Server"`
+	RedisDB           int         `env:"REDIS_DB"							flag:"redis-db"       			flagDesc:"Redis DB"`
+	RedisPassword     string      `env:"REDIS_PASSWORD"				flag:"redis-password"       flagDesc:"Redis Password"`
 }
 
 var cfg *Config
-var redisOpt *redis.Options
 
 // Get returns a populated Config struct
 func Get() *Config {
@@ -35,24 +33,4 @@ func Get() *Config {
 	}
 
 	return cfg
-}
-
-// GetRedisOptions returns an initialised RedisOptions struct
-func GetRedisOptions() *redis.Options {
-	if redisOpt != nil {
-		return redisOpt
-	}
-
-	db, err := strconv.Atoi(os.Getenv("REDIS_DB"))
-	if err != nil {
-		db = 0
-	}
-
-	redisOpt = &redis.Options{
-		Addr:     os.Getenv("REDIS_SERVER"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       db,
-	}
-
-	return redisOpt
 }

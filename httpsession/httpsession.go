@@ -9,6 +9,7 @@ import (
 	session "github.com/companieshouse/go-session-handler/session"
 	"github.com/companieshouse/go-session-handler/state"
 	"github.com/justinas/alice"
+	redis "gopkg.in/redis.v5"
 )
 
 // Type for creating context keys
@@ -31,7 +32,11 @@ func handler(h http.Handler) http.Handler {
 		// Init all config
 		cfg := config.Get()
 
-		redisOptions := config.GetRedisOptions()
+		redisOptions := &redis.Options{
+			Addr:     cfg.RedisServer,
+			DB:       cfg.RedisDB,
+			Password: cfg.RedisPassword,
+		}
 
 		cache, err := state.NewCache(redisOptions)
 		if err != nil {
