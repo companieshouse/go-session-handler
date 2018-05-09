@@ -3,7 +3,6 @@ package httpsession
 import (
 	"context"
 	"net/http"
-	"os"
 
 	"github.com/companieshouse/chs.go/log"
 	"github.com/companieshouse/go-session-handler/config"
@@ -64,14 +63,13 @@ func handler(h http.Handler) http.Handler {
 		h.ServeHTTP(w, req)
 
 		s.Data = sessionData
-		log.Info("", log.Data{"Session": sessionData})
 
 		err = s.Store()
 		if err != nil {
 			log.ErrorR(req, err)
 		}
 
-		setSessionIDOnResponse(w, s)
+		setSessionIDOnResponse(w, s, cfg)
 	})
 }
 
@@ -90,10 +88,10 @@ func getSessionIDFromRequest(cookieName string, req *http.Request) string {
 
 //setSessionIDOnResponse will refresh the session cookie in case the ID has been
 //changed since load
-func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store) {
+func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store, cfg *config.Config) {
 	cookie := &http.Cookie{
 		Value: s.ID + s.GenerateSignature(),
-		Name:  os.Getenv("COOKIE_NAME"),
+		Name:  cfg.CookieName,
 	}
 	http.SetCookie(w, cookie)
 }
