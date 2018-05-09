@@ -267,7 +267,7 @@ func (s *Store) validateExpiration() error {
 func (s *Store) storeSession(encodedData string) error {
 
 	var err error
-	_, err = s.cache.setSessionData(s.ID, encodedData, 0).Result()
+	_, err = s.cache.setSessionData(s.ID, encodedData).Result()
 	return err
 }
 

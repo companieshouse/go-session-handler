@@ -38,8 +38,8 @@ func NewCache(connectionInfo *redis.Options) (*Cache, error) {
 */
 
 //setSessionData stores the Session data in the Cache.
-func (c *Cache) setSessionData(key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
-	return c.connection.Set(key, value, expiration)
+func (c *Cache) setSessionData(key string, value interface{}) *redis.StatusCmd {
+	return c.connection.Set(key, value, 0)
 }
 
 //getSessionData loads the Session data from the Cache.
