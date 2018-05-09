@@ -42,7 +42,7 @@ func (s *Store) Load(sessionID string) error {
 	err := s.validateSessionID(sessionID)
 
 	// If validateSessionID returns an error, we need to return an empty session
-	// That said, no exceptions have occured so return a nil error
+	// That said, no exceptions have occurred so return a nil error
 	if err != nil {
 		log.Trace(err.Error())
 		return nil
@@ -162,7 +162,7 @@ func (s *Store) regenerateID() error {
 func (s *Store) GenerateSignature() string {
 	sum := encoding.GenerateSha1Sum([]byte(s.ID + s.config.CookieSecret))
 	sig := encoding.EncodeBase64(sum[:])
-	//Substring applied here to accomodate for base64 encoded padding of '='
+	//Substring applied here to accommodate for base64 encoded padding of '='
 	return sig[0:signatureLength]
 }
 
