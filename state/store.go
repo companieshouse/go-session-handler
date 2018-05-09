@@ -54,9 +54,8 @@ func (s *Store) Load(sessionID string) error {
 			//If the session isn't stored in Redis, clear any data and return nil error
 			s.clearSessionData()
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
 
 	s.Data, err = s.decodeSession(session)
