@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/companieshouse/chs.go/log"
 	"github.com/companieshouse/go-session-handler/config"
 	"github.com/companieshouse/go-session-handler/encoding"
 	session "github.com/companieshouse/go-session-handler/session"
-	"github.com/ian-kent/go-log/log"
 	redis "gopkg.in/redis.v5"
 )
 
@@ -86,7 +86,7 @@ func (s *Store) Store() error {
 		s.clearSessionData() // Set session data to an empty map rather than nil
 
 		// Since this should never happen, we'll add a log warning
-		log.Warn("Session data was nil for ID " + s.ID)
+		log.Info("Session data was nil for ID " + s.ID)
 		return nil
 	}
 
