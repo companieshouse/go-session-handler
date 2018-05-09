@@ -74,11 +74,11 @@ func (data *SessionData) RefreshExpiration() {
 
 // GetOauth2Token returns an oauth2 token derived from the session data. Returns
 // nil if the user is not yet signed in
-func (s *SessionData) GetOauth2Token() *goauth2.Token {
-	if s.isSignedIn() {
-		tok := &goauth2.Token{AccessToken: s.GetAccessToken(),
-			RefreshToken: s.getRefreshToken(),
-			Expiry:       s.getExpiry(),
+func (data *SessionData) GetOauth2Token() *goauth2.Token {
+	if data.isSignedIn() {
+		tok := &goauth2.Token{AccessToken: data.GetAccessToken(),
+			RefreshToken: data.getRefreshToken(),
+			Expiry:       data.getExpiry(),
 		}
 
 		return tok
