@@ -8,12 +8,12 @@ import (
 // Config holds the session handler configuration
 type Config struct {
 	gofigure          interface{} `order:"env,flag"`
-	DefaultExpiration string      `env:"DEFAULT_SESSION_EXPIRATION"		flag:"default-expiration"   flagDesc:"Default Expiration"`
-	CookieName        string      `env:"COOKIE_NAME"									flag:"cookie-name"          flagDesc:"Cookie Name"`
-	CookieSecret      string      `env:"COOKIE_SECRET"								flag:"cookie-secret"        flagDesc:"Cookie Secret"`
-	RedisServer       string      `env:"REDIS_SERVER"									flag:"redis-serveir"        flagDesc:"Redis Server"`
-	RedisDB           int         `env:"REDIS_DB"											flag:"redis-db"       			flagDesc:"Redis DB"`
-	RedisPassword     string      `env:"REDIS_PASSWORD"								flag:"redis-password"       flagDesc:"Redis Password"`
+	DefaultExpiration string      `env:"DEFAULT_SESSION_EXPIRATION" flag:"default-expiration" flagDesc:"Default Expiration"`
+	CookieName        string      `env:"COOKIE_NAME"                flag:"cookie-name"        flagDesc:"Cookie Name"`
+	CookieSecret      string      `env:"COOKIE_SECRET"              flag:"cookie-secret"      flagDesc:"Cookie Secret"`
+	RedisServer       string      `env:"REDIS_SERVER"               flag:"redis-serveir"      flagDesc:"Redis Server"`
+	RedisDB           int         `env:"REDIS_DB"                   flag:"redis-db"           flagDesc:"Redis DB"`
+	RedisPassword     string      `env:"REDIS_PASSWORD"             flag:"redis-password"     flagDesc:"Redis Password"`
 }
 
 var cfg *Config
