@@ -126,11 +126,7 @@ func (s *Store) Delete(id *string) error {
 	}
 
 	err := s.cache.deleteSessionData(sessionID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 //Clear destroys the current loaded session and removes it from the backing
