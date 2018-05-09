@@ -40,7 +40,7 @@ for encoding and decoding both [base64](https://golang.org/pkg/encoding/base64/)
 The `httpsession` package gives the user the ability to register with an [alice chain](https://github.com/justinas/alice) and provide a
 Handler.
 
-### session
+#### session
 The `session` package provides some useful helper functions to retrieve commonly used Session data from the stored Session map.  
 
 ## Testing
@@ -52,15 +52,14 @@ goconvey
 Note: this library is not a standalone service, and can only be used within services or other libraries.
 
 ## Environment Variables
-
-Key | Description | Scope | Mandatory | Default
-----|-------------|-------|-----------|--------
-COOKIE_SECRET | The shared secret used in validating/calculating the session cookie signature | State | Y |
-COOKIE_NAME | The name of the cookie from which to retrieve the session ID | HttpSession | Y |
-DEFAULT_SESSION_EXPIRATION | Default session expiration in seconds | State | Y |
-REDIS_SERVER | Server address for the Redis database | HttpSession | Y |
-REDIS_DB | The Redis database number (integer) | HttpSession | Y |
-REDIS_PASSWORD | Password to access the Redis database | HttpSession | Y |
+Key | Description | Scope | Mandatory
+----|-------------|-------|-----------
+COOKIE_SECRET | The shared secret used in validating/calculating the session cookie signature | State | Y
+COOKIE_NAME | The name of the cookie from which to retrieve the session ID | HttpSession | Y
+DEFAULT_SESSION_EXPIRATION | Default session expiration in seconds | State | Y
+REDIS_SERVER | Server address for the Redis database | HttpSession | Y
+REDIS_DB | The Redis database number (integer) | HttpSession | Y
+REDIS_PASSWORD | Password to access the Redis database | HttpSession | Y 
 
 
 ## Example library usage
