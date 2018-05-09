@@ -204,7 +204,7 @@ func (s *Store) validateSessionID(sessionID string) error {
 	}
 
 	s.ID = sessionID[0:signatureStart]
-	sig := sessionID[signatureStart:len(sessionID)]
+	sig := sessionID[signatureStart:]
 
 	//Validate signature is the same
 	if sig != s.GenerateSignature() {
