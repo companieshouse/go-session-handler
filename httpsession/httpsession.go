@@ -12,10 +12,10 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
-// Type for creating context keys
+// ContextKey is a type to cast context keys
 type ContextKey string
 
-// Set the context key for the session
+// ContextKeySession is the key used to fetch the session from the context
 var ContextKeySession = ContextKey("session")
 
 // Register will append an HTTP handler to an Alice chain, whereby the stored
@@ -101,6 +101,8 @@ func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store, cfg *config.C
 	http.SetCookie(w, cookie)
 }
 
+// GetSessionDataFromRequest retrieves session data from a given request,
+// fetching it from the context using the ContextKeySession
 func GetSessionDataFromRequest(req *http.Request) *session.SessionData {
 	return req.Context().Value(ContextKeySession).(*session.SessionData)
 }
