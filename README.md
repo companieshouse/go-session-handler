@@ -52,6 +52,8 @@ goconvey
 Note: this library is not a standalone service, and can only be used within services or other libraries.
 
 ## Environment Variables
+The following environment variables are required when integrating the session handler into any Go service.
+
 Key | Description | Scope | Mandatory
 ----|-------------|-------|-----------
 COOKIE_SECRET | The shared secret used in validating/calculating the session cookie signature | State | Y
@@ -59,7 +61,7 @@ COOKIE_NAME | The name of the cookie from which to retrieve the session ID | Htt
 DEFAULT_SESSION_EXPIRATION | Default session expiration in seconds | State | Y
 REDIS_SERVER | Server address for the Redis database | HttpSession | Y
 REDIS_DB | The Redis database number (integer) | HttpSession | Y
-REDIS_PASSWORD | Password to access the Redis database | HttpSession | Y 
+REDIS_PASSWORD | Password to access the Redis database | HttpSession | Y
 
 
 ## Example library usage
