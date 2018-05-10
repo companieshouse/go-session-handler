@@ -10,6 +10,7 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
+// Connection is the interface used to interact with the Redis database
 type Connection interface {
 	Set(key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 	Get(key string) *redis.StringCmd
