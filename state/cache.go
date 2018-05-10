@@ -24,14 +24,10 @@ type Cache struct {
 }
 
 //NewCache will properly initialise a new Cache object.
-func NewCache(connectionInfo *redis.Options) (*Cache, error) {
+func NewCache(connectionInfo *redis.Options) *Cache {
 	cache := &Cache{}
-
-	if err := cache.setRedisClient(connectionInfo); err != nil {
-		return nil, err
-	}
-
-	return cache, nil
+	cache.setRedisClient(connectionInfo)
+	return cache
 }
 
 /*
@@ -55,13 +51,7 @@ func (c *Cache) deleteSessionData(key string) error {
 }
 
 //setRedisClient into the Cache struct
-func (c *Cache) setRedisClient(options *redis.Options) error {
+func (c *Cache) setRedisClient(options *redis.Options) {
 	client := redis.NewClient(options)
-
-	if _, err := client.Ping().Result(); err != nil {
-		return err
-	}
-
 	c.connection = client
-	return nil
 }

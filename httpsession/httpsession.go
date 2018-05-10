@@ -38,12 +38,7 @@ func handler(h http.Handler) http.Handler {
 			Password: cfg.RedisPassword,
 		}
 
-		cache, err := state.NewCache(redisOptions)
-		if err != nil {
-			log.ErrorR(req, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		cache := state.NewCache(redisOptions)
 
 		s := state.NewStore(cache, cfg)
 
@@ -69,7 +64,7 @@ func handler(h http.Handler) http.Handler {
 
 		s.Data = sessionData
 
-		err = s.Store()
+		err := s.Store()
 		if err != nil {
 			log.ErrorR(req, err)
 		}
