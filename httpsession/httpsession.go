@@ -9,7 +9,6 @@ import (
 	session "github.com/companieshouse/go-session-handler/session"
 	"github.com/companieshouse/go-session-handler/state"
 	"github.com/justinas/alice"
-	redis "gopkg.in/redis.v5"
 )
 
 // ContextKey is a type to cast context keys
@@ -32,13 +31,7 @@ func handler(h http.Handler) http.Handler {
 		// Init all config
 		cfg := config.Get()
 
-		redisOptions := &redis.Options{
-			Addr:     cfg.RedisServer,
-			DB:       cfg.RedisDB,
-			Password: cfg.RedisPassword,
-		}
-
-		cache := state.NewCache(redisOptions)
+		cache := state.NewCache(cfg.CacheServer, cfg.CacheDB, cfg.CachePassword)
 
 		s := state.NewStore(cache, cfg)
 

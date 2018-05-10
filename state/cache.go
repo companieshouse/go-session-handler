@@ -17,6 +17,12 @@ type Connection interface {
 	Del(key ...string) *redis.IntCmd
 }
 
+type CacheOptions struct {
+	Addr     string
+	DB       int
+	Password string
+}
+
 //Cache is the struct that contains the connection info for retrieving/saving
 //The session data.
 type Cache struct {
@@ -24,9 +30,16 @@ type Cache struct {
 }
 
 //NewCache will properly initialise a new Cache object.
-func NewCache(connectionInfo *redis.Options) *Cache {
+func NewCache(addr string, db int, password string) *Cache {
 	cache := &Cache{}
-	cache.setRedisClient(connectionInfo)
+
+	redisOptions := &redis.Options{
+		Addr:     addr,
+		DB:       db,
+		Password: password,
+	}
+
+	cache.setRedisClient(redisOptions)
 	return cache
 }
 
