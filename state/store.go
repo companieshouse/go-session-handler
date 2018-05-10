@@ -79,7 +79,11 @@ func (s *Store) Load(sessionID string) error {
 	return nil
 }
 
-// Store will take a store struct, validate it, and attempt to save it
+// Store operates on a Store struct, saving it in the cache.
+// Firstly, if the session data is nil, it will be set to an empty map.
+// If the ID is not supplied, one will be generated.
+// If expiry is its default value (0), it will be set on the store.
+// The session will then be encoded, and an attempt made to save it.
 func (s *Store) Store() error {
 
 	if s.Data == nil {
