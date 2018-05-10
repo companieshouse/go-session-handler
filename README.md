@@ -51,7 +51,8 @@ goconvey
 
 Note: this library is not a standalone service, and can only be used within services or other libraries.
 
-## Environment Variables
+## Environment Variables
+
 The following environment variables are required when integrating the session handler into any Go service.
 
 Key | Description | Scope | Mandatory
