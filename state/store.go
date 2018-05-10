@@ -140,8 +140,14 @@ func (s *Store) Clear() error {
 	if err != nil {
 		return err
 	}
+
 	s.clearSessionData()
-	s.regenerateID()
+
+	err = s.regenerateID()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -250,7 +256,10 @@ func (s *Store) validateExpiration() error {
 	s.Expires = uint64(s.Data["expires"].(uint32))
 
 	if s.Expires == uint64(0) {
-		s.setupExpiration()
+		err := s.setupExpiration()
+		if err != nil {
+			return err
+		}
 	}
 
 	now := uint64(time.Now().Unix())
