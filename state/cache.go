@@ -17,12 +17,6 @@ type Connection interface {
 	Del(key ...string) *redis.IntCmd
 }
 
-type CacheOptions struct {
-	Addr     string
-	DB       int
-	Password string
-}
-
 //Cache is the struct that contains the connection info for retrieving/saving
 //The session data.
 type Cache struct {

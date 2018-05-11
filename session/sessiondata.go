@@ -8,6 +8,7 @@ import (
 	goauth2 "golang.org/x/oauth2"
 )
 
+// SessionData is a map respresentation of the session data
 type SessionData map[string]interface{}
 
 // GetAccessToken retrieves the access token from the session data
