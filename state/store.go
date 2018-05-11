@@ -142,13 +142,8 @@ func (s *Store) Clear() error {
 	}
 
 	s.clearSessionData()
-
 	err = s.regenerateID()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 //regenerateID refreshes the token against the Store struct
