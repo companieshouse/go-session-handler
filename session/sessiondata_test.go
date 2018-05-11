@@ -77,16 +77,13 @@ func TestSetAccessToken(t *testing.T) {
 
 		oldAccessToken := "Foo"
 
-		var sessionData SessionData
-
-		session := map[string]interface{}{
+		var sessionData SessionData = map[string]interface{}{
 			"signin_info": map[string]interface{}{
 				"access_token": map[string]interface{}{
 					"access_token": oldAccessToken,
 				},
 			},
 		}
-		sessionData = session
 
 		Convey("When I call SetAccessToken with a new token", func() {
 
@@ -96,6 +93,35 @@ func TestSetAccessToken(t *testing.T) {
 			Convey("Then the access token should be updated", func() {
 
 				So(sessionData.GetAccessToken(), ShouldEqual, newAccessToken)
+			})
+		})
+	})
+}
+
+// TestSetRefreshToken verifies that the session data refresh token is stored
+// correctly
+func TestSetRefreshToken(t *testing.T) {
+
+	Convey("Given I have session data with an old refresh token", t, func() {
+
+		oldRefreshToken := "Foo"
+
+		var sessionData SessionData = map[string]interface{}{
+			"signin_info": map[string]interface{}{
+				"access_token": map[string]interface{}{
+					"refresh_token": oldRefreshToken,
+				},
+			},
+		}
+
+		Convey("When I call SetRefreshToken with a new token", func() {
+
+			newRefreshToken := "Bar"
+			sessionData.SetRefreshToken(newRefreshToken)
+
+			Convey("Then the refresh token should be updated", func() {
+
+				So(sessionData.getRefreshToken(), ShouldEqual, newRefreshToken)
 			})
 		})
 	})

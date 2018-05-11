@@ -51,6 +51,13 @@ func (data *SessionData) SetAccessToken(accessToken string) {
 	accessTokenMap["access_token"] = accessToken
 }
 
+// SetRefreshToken sets the refresh token on the session data map
+func (data *SessionData) SetRefreshToken(refreshToken string) {
+	signinInfo := (*data)["signin_info"].(map[string]interface{})
+	accessTokenMap := signinInfo["access_token"].(map[string]interface{})
+	accessTokenMap["refresh_token"] = refreshToken
+}
+
 // GetExpiration returns the expiration period from the session data
 func (data *SessionData) GetExpiration() uint64 {
 	signinInfo := (*data)["signin_info"].(map[string]interface{})
