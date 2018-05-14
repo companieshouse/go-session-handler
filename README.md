@@ -54,6 +54,7 @@ Note: this library is not a standalone service, and can only be used within serv
 ## Environment Variables
 
 The following environment variables are required when integrating the session handler into any Go service.
+Note: this library uses `gofigure` to manage environment variables. These variables must not be overridden by applications using the library.
 
 Key | Description | Scope | Mandatory
 ----|-------------|-------|-----------
