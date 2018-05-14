@@ -71,13 +71,18 @@ func (data *SessionData) GetExpiration() uint64 {
 
 // RefreshExpiration updates the 'expires' value on the session to the current
 // time plus the expiration period
-func (data *SessionData) RefreshExpiration() {
+func (data *SessionData) RefreshExpiration() error {
+	var err error
 	expiration := data.GetExpiration()
 	if expiration == uint64(0) {
-		expiration, _ = strconv.ParseUint(os.Getenv("DEFAULT_EXPIRATION"), 0, 64)
+		expiration, err = strconv.ParseUint(os.Getenv("DEFAULT_EXPIRATION"), 0, 64)
+		if err != nil {
+			return err
+		}
 	}
 
 	(*data)["expires"] = uint32(uint64(time.Now().Unix()) + expiration)
+	return nil
 }
 
 // GetOauth2Token returns an oauth2 token derived from the session data. Returns
