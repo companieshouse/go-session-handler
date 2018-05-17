@@ -62,7 +62,7 @@ func handler(h http.Handler) http.Handler {
 			log.ErrorR(req, err)
 		}
 
-		setSessionIDOnResponse(w, s, cfg)
+		setSessionIDOnResponse(w, s)
 	})
 }
 
@@ -81,10 +81,10 @@ func getSessionIDFromRequest(cookieName string, req *http.Request) string {
 
 //setSessionIDOnResponse will refresh the session cookie in case the ID has been
 //changed since load
-func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store, cfg *config.Config) {
+func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store) {
 	cookie := &http.Cookie{
 		Value: s.ID + s.GenerateSignature(),
-		Name:  cfg.CookieName,
+		Name:  config.Get().CookieName,
 	}
 	http.SetCookie(w, cookie)
 }
