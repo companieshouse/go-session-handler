@@ -2,6 +2,7 @@ package state
 
 import (
 	"errors"
+    "os"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,16 @@ func getConfig() *config.Config {
 		CookieName:        "TEST",
 		CookieSecret:      strings.Repeat("b", signatureLength),
 	}
+}
+
+func initConfig() {
+    os.Setenv("COOKIE_SECRET", "hello")
+    os.Setenv("COOKIE_NAME", "TEST")
+}
+
+func cleanupConfig() {
+    os.Unsetenv("COOKIE_SECRET")
+    os.Unsetenv("COOKIE_NAME")
 }
 
 // ------------------- Routes Through SetSession() -------------------
@@ -121,9 +132,11 @@ func TestGetSessionHappyPath(t *testing.T) {
 // issue when validating the session data
 func TestStoreErrorInValidateSession(t *testing.T) {
 
+    initConfig()
+
 	Convey("Given I create a store with no data", t, func() {
 
-		s := NewStore(nil, getConfig())
+		s := NewStore(nil)
 
 		Convey("When I store the session", func() {
 
@@ -136,11 +149,15 @@ func TestStoreErrorInValidateSession(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // TestStoreErrorInSetSession - Verify error trapping is enforced if there's an
 // issue when saving the session data
 func TestStoreErrorInSetSession(t *testing.T) {
+
+    initConfig()
 
 	Convey("Given I create a store with valid data but there's an error when saving the session",
 		t, func() {
@@ -161,7 +178,7 @@ func TestStoreErrorInSetSession(t *testing.T) {
 				},
 			}
 
-			s := NewStore(c, getConfig())
+			s := NewStore(c)
 			s.Data = data
 
 			Convey("When I store the session", func() {
@@ -175,11 +192,15 @@ func TestStoreErrorInSetSession(t *testing.T) {
 				})
 			})
 		})
+
+    cleanupConfig()
 }
 
 // TestStoreHappyPath - Verify no errors are returned from Store if the happy
 // path is followed
 func TestStoreHappyPath(t *testing.T) {
+
+    initConfig()
 
 	Convey("Given I create a store with valid data and I follow the 'happy path'",
 		t, func() {
@@ -200,7 +221,7 @@ func TestStoreHappyPath(t *testing.T) {
 				},
 			}
 
-			s := NewStore(c, getConfig())
+			s := NewStore(c)
 			s.Data = data
 
 			Convey("When I store the session", func() {
@@ -213,6 +234,8 @@ func TestStoreHappyPath(t *testing.T) {
 				})
 			})
 		})
+
+    cleanupConfig()
 }
 
 // ------------------- Routes Through validateExpiration() -------------------
@@ -221,9 +244,11 @@ func TestStoreHappyPath(t *testing.T) {
 // expired we throw an error
 func TestValidateExpirationSessionHasExpired(t *testing.T) {
 
+    initConfig()
+
 	Convey("Given I have an expired session", t, func() {
 
-		s := NewStore(nil, getConfig())
+		s := NewStore(nil)
 
 		now := uint64(time.Now().Unix())
 		expires := uint32(now - uint64(60))
@@ -241,15 +266,19 @@ func TestValidateExpirationSessionHasExpired(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // TestValidateExpirationNoExpirationSet - Verify that when 'expires' isn't set
 // on the store, it is set in validateExpiration
 func TestValidateExpirationNoExpirationSet(t *testing.T) {
 
+    initConfig()
+
 	Convey("Given I have an session store with expires set to 0", t, func() {
 
-		s := NewStore(nil, getConfig())
+		s := NewStore(nil)
 
 		data := map[string]interface{}{
 			"expires": uint32(0),
@@ -273,6 +302,8 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // ------------------- Routes Through Delete() -------------------
@@ -280,6 +311,8 @@ func TestValidateExpirationNoExpirationSet(t *testing.T) {
 // TestDeleteErrorPath - Verify error trapping is enforced if there's an
 // issue when deleting session data
 func TestDeleteErrorPath(t *testing.T) {
+
+    initConfig()
 
 	Convey("Given a Redis error is thrown when deleting session data", t, func() {
 
@@ -291,7 +324,7 @@ func TestDeleteErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, getConfig())
+			s := NewStore(cache)
 
 			test := "abc"
 
@@ -304,11 +337,15 @@ func TestDeleteErrorPath(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // TestDeleteHappyPath - Verify no errors are returned when following the 'happy
 // path' whilst deleting session data
 func TestDeleteHappyPath(t *testing.T) {
+
+    initConfig()
 
 	Convey("Given a the happy path is followed when deleting session data", t, func() {
 
@@ -320,7 +357,7 @@ func TestDeleteHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, getConfig())
+			s := NewStore(cache)
 
 			test := "abc"
 
@@ -332,6 +369,8 @@ func TestDeleteHappyPath(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // ------------------- Routes Through Clear() -------------------
@@ -339,6 +378,8 @@ func TestDeleteHappyPath(t *testing.T) {
 // TestClearErrorPath - Verify error trapping is enforced if there's an
 // issue when clearing session data
 func TestClearErrorPath(t *testing.T) {
+
+    initConfig()
 
 	Convey("Given a Redis error is thrown when deleting session data", t, func() {
 
@@ -350,7 +391,7 @@ func TestClearErrorPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, getConfig())
+			s := NewStore(cache)
 
 			s.ID = "abc"
 
@@ -364,10 +405,14 @@ func TestClearErrorPath(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // TestClearHappyPath - Verify no errors are returned from the Clear() happy path
 func TestClearHappyPath(t *testing.T) {
+
+    initConfig()
 
 	Convey("Given no errors are thrown when deleting session data", t, func() {
 
@@ -378,7 +423,7 @@ func TestClearHappyPath(t *testing.T) {
 
 			cache := &Cache{connection: connection}
 
-			s := NewStore(cache, getConfig())
+			s := NewStore(cache)
 
 			s.ID = "abc"
 			s.Data = map[string]interface{}{
@@ -396,6 +441,8 @@ func TestClearHappyPath(t *testing.T) {
 				})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // ---------------- Routes Through ValidateCookieSignature() ----------------
@@ -403,6 +450,8 @@ func TestClearHappyPath(t *testing.T) {
 // TestValidateCookieSignatureLengthInvalid - Verify that if the signature from
 // the cookie is too short, an appropriate error is thrown
 func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
+
+    initConfig()
 
 	Convey("Given the cookie signature is less than the desired length", t, func() {
 
@@ -415,7 +464,7 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 
 			c := &Cache{connection: connection}
 
-			s := NewStore(c, getConfig())
+			s := NewStore(c)
 			err := s.validateSessionID(sig)
 
 			Convey("Then an approriate error should be returned", func() {
@@ -425,25 +474,27 @@ func TestValidateCookieSignatureLengthInvalid(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // TestValidateSessionIDHappyPath - Verify that no errors are thrown when
 // following the validate session ID 'happy path'
 func TestValidateSessionIDHappyPath(t *testing.T) {
 
+    initConfig()
+
 	Convey("Given the session ID is valid", t, func() {
 
-		config := getConfig()
-
 		id := strings.Repeat("a", signatureStart)
-		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + "hello"))
 		signature := encoding.EncodeBase64(signatureByte[:])
 
 		sessionID := id + signature[0:signatureLength]
 
 		Convey("When I initialise the Store and try to validate it", func() {
 
-			s := NewStore(nil, config)
+			s := NewStore(nil)
 			err := s.validateSessionID(sessionID)
 
 			Convey("Then no errors should be returned", func() {
@@ -452,6 +503,8 @@ func TestValidateSessionIDHappyPath(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // ---------------- Routes Through decodeSession() ----------------
@@ -460,9 +513,11 @@ func TestValidateSessionIDHappyPath(t *testing.T) {
 // the name the config specifies, a new blank cookie is returned
 func TestDecodeSessionBase64Invalid(t *testing.T) {
 
+    initConfig()
+
 	Convey("Given the session string isn't base64 encoded", t, func() {
 
-		s := NewStore(nil, getConfig())
+		s := NewStore(nil)
 
 		Convey("When the Store tries to decode it", func() {
 			decodedSession, err := s.decodeSession("Hello")
@@ -477,15 +532,19 @@ func TestDecodeSessionBase64Invalid(t *testing.T) {
 
 		})
 	})
+
+    cleanupConfig()
 }
 
 // TestDecodeSessionMessagepackInvalid - Verify that if a cookie doesn't exist by
 // the name the config specifies, a new blank cookie is returned
 func TestDecodeSessionMessagepackInvalid(t *testing.T) {
 
+    initConfig()
+
 	Convey("Given the session string isn't messagepack encoded", t, func() {
 
-		s := NewStore(nil, getConfig())
+		s := NewStore(nil)
 
 		Convey("When the Store tries to decode it", func() {
 
@@ -502,6 +561,8 @@ func TestDecodeSessionMessagepackInvalid(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // ---------------- Routes Through Load() ----------------
@@ -509,6 +570,8 @@ func TestDecodeSessionMessagepackInvalid(t *testing.T) {
 // TestLoadErrorInValidateSignature - Verify error trapping whilst validating a
 // cookie signature
 func TestLoadErrorInValidateSignature(t *testing.T) {
+
+    initConfig()
 
 	Convey("Given I have a session ID less than the desired length", t, func() {
 
@@ -523,9 +586,7 @@ func TestLoadErrorInValidateSignature(t *testing.T) {
 
 			Convey("When I attempt to load the session", func() {
 
-				config := getConfig()
-
-				s := NewStore(cache, config)
+				s := NewStore(cache)
 
 				err := s.Load(sessionID)
 
@@ -537,19 +598,21 @@ func TestLoadErrorInValidateSignature(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // TestLoadErrorRetrievingSession - Verify error trapping whilst retrieving session
 // data from Redis
 func TestLoadErrorRetrievingSession(t *testing.T) {
 
-	Convey("Given I have a valid session ID", t, func() {
+    initConfig()
 
-		config := &config.Config{CookieSecret: strings.Repeat("b", signatureLength)}
+	Convey("Given I have a valid session ID", t, func() {
 
 		id := strings.Repeat("a", signatureStart)
 
-		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + "hello"))
 		signature := encoding.EncodeBase64(signatureByte[:])
 
 		sessionID := id + signature[0:signatureLength]
@@ -564,7 +627,7 @@ func TestLoadErrorRetrievingSession(t *testing.T) {
 
 			Convey("When I attempt to load the session", func() {
 
-				s := NewStore(cache, config)
+				s := NewStore(cache)
 
 				err := s.Load(sessionID)
 
@@ -576,19 +639,21 @@ func TestLoadErrorRetrievingSession(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }
 
 // TestLoadErrorDecodingSession - Verify error trapping whilst decoding session
 // data on load
 func TestLoadErrorDecodingSession(t *testing.T) {
 
-	Convey("Given I have a valid session ID", t, func() {
+    initConfig()
 
-		config := &config.Config{CookieSecret: strings.Repeat("b", signatureLength)}
+	Convey("Given I have a valid session ID", t, func() {
 
 		id := strings.Repeat("a", signatureStart)
 
-		signatureByte := encoding.GenerateSha1Sum([]byte(id + config.CookieSecret))
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + "hello"))
 		signature := encoding.EncodeBase64(signatureByte[:])
 
 		sessionID := id + signature[0:signatureLength]
@@ -602,7 +667,7 @@ func TestLoadErrorDecodingSession(t *testing.T) {
 
 			Convey("When I attempt to load the session", func() {
 
-				s := NewStore(cache, config)
+				s := NewStore(cache)
 
 				err := s.Load(sessionID)
 
@@ -614,4 +679,6 @@ func TestLoadErrorDecodingSession(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }

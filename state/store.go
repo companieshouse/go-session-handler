@@ -26,13 +26,12 @@ type Store struct {
 	Expires uint64
 	Data    session.SessionData
 	cache   *Cache
-	config  *config.Config
 }
 
 //NewStore will properly initialise a new Store object.
-func NewStore(cache *Cache, config *config.Config) *Store {
+func NewStore(cache *Cache) *Store {
 
-	return &Store{cache: cache, config: config}
+	return &Store{cache: cache}
 }
 
 //Load is used to try and get a session from the cache. If it succeeds it will
@@ -161,7 +160,7 @@ func (s *Store) regenerateID() error {
 //GenerateSignature will generate a new signature based on the Store ID and
 //the cookie secret.
 func (s *Store) GenerateSignature() string {
-	sum := encoding.GenerateSha1Sum([]byte(s.ID + s.config.CookieSecret))
+	sum := encoding.GenerateSha1Sum([]byte(s.ID + config.Get().CookieSecret))
 	sig := encoding.EncodeBase64(sum[:])
 	//Substring applied here to accommodate for base64 encoded padding of '='
 	return sig[0:signatureLength]
@@ -180,7 +179,7 @@ func (s *Store) setupExpiration() error {
 
 	if expirationPeriod == uint64(0) {
 		// If that's zero, retrieve the default expiration from environment variables
-		expirationPeriod, err = strconv.ParseUint(s.config.DefaultExpiration, 0, 64)
+		expirationPeriod, err = strconv.ParseUint(config.Get().DefaultExpiration, 0, 64)
 		if err != nil {
 			return err
 		}
