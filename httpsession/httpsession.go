@@ -33,7 +33,7 @@ func handler(h http.Handler) http.Handler {
 
 		cache := state.NewCache(cfg.CacheServer, cfg.CacheDB, cfg.CachePassword)
 
-		s := state.NewStore(cache, cfg)
+		s := state.NewStore(cache)
 
 		// Pull session ID from the cookie on the request
 		sessionID := getSessionIDFromRequest(cfg.CookieName, req)
