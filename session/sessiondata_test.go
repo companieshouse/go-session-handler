@@ -1,11 +1,20 @@
 package session
 
 import (
+    "os"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+func initConfig() {
+    os.Setenv("DEFAULT_SESSION_EXPIRATION", "5")
+}
+
+func cleanupConfig() {
+    os.Unsetenv("DEFAULT_SESSION_EXPIRATION")
+}
 
 // TestGetAccessToken verifies that the session data access token is returned
 // correctly
@@ -15,7 +24,7 @@ func TestGetAccessToken(t *testing.T) {
 
 		accessToken := "Foo"
 
-		var sessionData SessionData
+		var sessionData Session
 
 		session := map[string]interface{}{
 			"signin_info": map[string]interface{}{
@@ -46,7 +55,7 @@ func TestGetRefreshToken(t *testing.T) {
 
 		refreshToken := "Bar"
 
-		var sessionData SessionData
+		var sessionData Session
 
 		session := map[string]interface{}{
 			"signin_info": map[string]interface{}{
@@ -77,7 +86,7 @@ func TestSetAccessToken(t *testing.T) {
 
 		oldAccessToken := "Foo"
 
-		var sessionData SessionData = map[string]interface{}{
+		var sessionData Session = map[string]interface{}{
 			"signin_info": map[string]interface{}{
 				"access_token": map[string]interface{}{
 					"access_token": oldAccessToken,
@@ -106,7 +115,7 @@ func TestSetRefreshToken(t *testing.T) {
 
 		oldRefreshToken := "Foo"
 
-		var sessionData SessionData = map[string]interface{}{
+		var sessionData Session = map[string]interface{}{
 			"signin_info": map[string]interface{}{
 				"access_token": map[string]interface{}{
 					"refresh_token": oldRefreshToken,
@@ -136,7 +145,7 @@ func TestGetOauth2TokenUserSignedIn(t *testing.T) {
 		refreshToken := "Bar"
 		expiry := uint32(12345)
 
-		var sessionData SessionData = map[string]interface{}{
+		var sessionData Session = map[string]interface{}{
 			"expires": expiry,
 			"signin_info": map[string]interface{}{
 				"signed_in": int8(1),
@@ -172,7 +181,7 @@ func TestGetOauth2TokenNotUserSignedIn(t *testing.T) {
 
 	Convey("Given I have session data for a non-signed-in session", t, func() {
 
-		var sessionData SessionData = map[string]interface{}{
+		var sessionData Session = map[string]interface{}{
 			"signin_info": map[string]interface{}{
 				"signed_in": int8(0),
 			},
@@ -196,7 +205,7 @@ func TestIsSignedInEmptySessionDataMap(t *testing.T) {
 
 	Convey("Given I have an empty session map", t, func() {
 
-		var sessionData SessionData = map[string]interface{}{}
+		var sessionData Session = map[string]interface{}{}
 
 		Convey("When I call isSignedIn", func() {
 
@@ -217,7 +226,7 @@ func TestGetExpirationHappyPath(t *testing.T) {
 
 		expiresIn := uint16(123)
 
-		var sessionData SessionData = map[string]interface{}{
+		var sessionData Session = map[string]interface{}{
 			"signin_info": map[string]interface{}{
 				"access_token": map[string]interface{}{
 					"expires_in": expiresIn,
@@ -243,7 +252,7 @@ func TestGetExpirationNonePresent(t *testing.T) {
 
 	Convey("Given I have some session data with no 'expires_in' token", t, func() {
 
-		var sessionData SessionData = map[string]interface{}{
+		var sessionData Session = map[string]interface{}{
 			"signin_info": map[string]interface{}{
 				"access_token": map[string]interface{}{},
 			},
@@ -263,13 +272,15 @@ func TestGetExpirationNonePresent(t *testing.T) {
 
 // TestRefreshExpiration verifies that once refreshed, expiration is not nil
 func TestRefreshExpiration(t *testing.T) {
+    initConfig()
 
 	Convey("Given I have some session data", t, func() {
 
-		var sessionData SessionData = map[string]interface{}{
+		var sessionData Session = map[string]interface{}{
 			"signin_info": map[string]interface{}{
 				"access_token": map[string]interface{}{},
 			},
+            "expires": 5,
 		}
 
 		Convey("When I call RefreshExpiration", func() {
@@ -282,4 +293,6 @@ func TestRefreshExpiration(t *testing.T) {
 			})
 		})
 	})
+
+    cleanupConfig()
 }

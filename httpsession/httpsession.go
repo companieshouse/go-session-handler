@@ -37,13 +37,13 @@ func handler(h http.Handler) http.Handler {
 
 		// Pull session ID from the cookie on the request
 		sessionID := getSessionIDFromRequest(cfg.CookieName, req)
-		var sessionData session.SessionData
+		var session session.Session
 
 		// If session is stored, retrieve it from Redis
 		if sessionID != "" {
 
 			if err := s.Load(sessionID); err == nil {
-				sessionData = s.Data
+				session = s.Data
 			} else {
 				log.ErrorR(req, err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -51,11 +51,11 @@ func handler(h http.Handler) http.Handler {
 			}
 		}
 
-		ctx := context.WithValue(context.Background(), ContextKeySession, &sessionData)
+		ctx := context.WithValue(context.Background(), ContextKeySession, &session)
 		req = req.WithContext(ctx)
 		h.ServeHTTP(w, req)
 
-		s.Data = sessionData
+		s.Data = session
 
 		err := s.Store()
 		if err != nil {
@@ -89,8 +89,8 @@ func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store) {
 	http.SetCookie(w, cookie)
 }
 
-// GetSessionDataFromRequest retrieves session data from a given request,
+// GetSessionFromRequest retrieves session data from a given request,
 // fetching it from the context using the ContextKeySession
-func GetSessionDataFromRequest(req *http.Request) *session.SessionData {
-	return req.Context().Value(ContextKeySession).(*session.SessionData)
+func GetSessionFromRequest(req *http.Request) *session.Session {
+	return req.Context().Value(ContextKeySession).(*session.Session)
 }

@@ -24,7 +24,7 @@ const cookieValueLength = signatureStart + signatureLength
 type Store struct {
 	ID      string
 	Expires uint64
-	Data    session.SessionData
+	Data    session.Session
 	cache   *Cache
 }
 
