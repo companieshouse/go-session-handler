@@ -11,9 +11,9 @@ type Config struct {
 	DefaultExpiration string      `env:"DEFAULT_SESSION_EXPIRATION" flag:"default-expiration" flagDesc:"Default Expiration"`
 	CookieName        string      `env:"COOKIE_NAME"                flag:"cookie-name"        flagDesc:"Cookie Name"`
 	CookieSecret      string      `env:"COOKIE_SECRET"              flag:"cookie-secret"      flagDesc:"Cookie Secret"`
-	CacheServer       string      `env:"REDIS_SERVER"               flag:"redis-serveir"      flagDesc:"Redis Server"`
-	CacheDB           int         `env:"REDIS_DB"                   flag:"redis-db"           flagDesc:"Redis DB"`
-	CachePassword     string      `env:"REDIS_PASSWORD"             flag:"redis-password"     flagDesc:"Redis Password"`
+	CacheServer       string      `env:"CACHE_SERVER"               flag:"cache-server"       flagDesc:"Cache Server"`
+	CacheDB           int         `env:"CACHE_DB"                   flag:"cache-db"           flagDesc:"Cache DB"`
+	CachePassword     string      `env:"CACHE_PASSWORD"             flag:"cache-password"     flagDesc:"Cache Password"`
 }
 
 var cfg *Config
