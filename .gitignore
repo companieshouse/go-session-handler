@@ -1,0 +1,13 @@
+# Build artifacts
+go-session-handler
+build.log
+
+# Test output
+test.xml
+
+# Lint output
+lint.txt
+
+# Mac files
+.DS_Store
+._*
