@@ -1,12 +1,26 @@
 lint_output  := lint.txt
 
 .PHONY: all
-all: test lint
+all: fmt test lint
+
+.PHONY: fmt
+fmt:
+	go fmt ./...
+
+.PHONY: deps
+deps:
+	go get ./...
+
+.PHONY: test-deps
+test-deps: deps
+	go get -t ./...
 
 .PHONY: test
-test:
-	go get ./...
-	go test ./...
+test: test-unit
+
+.PHONY: test-unit
+test-unit: test-deps
+	@set -a; go test ./... -run 'Unit'
 
 .PHONY: lint
 lint:
