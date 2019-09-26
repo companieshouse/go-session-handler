@@ -8,6 +8,9 @@ test.xml
 # Lint output
 lint.txt
 
+# GoLand files
+.idea/
+
 # Mac files
 .DS_Store
 ._*
