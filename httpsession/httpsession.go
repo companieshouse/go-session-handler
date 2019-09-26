@@ -37,13 +37,13 @@ func handler(h http.Handler) http.Handler {
 
 		// Pull session ID from the cookie on the request
 		sessionID := getSessionIDFromRequest(cfg.CookieName, req)
-		var session session.Session
+		var sess session.Session
 
 		// If session is stored, retrieve it from Redis
 		if sessionID != "" {
 
 			if err := s.Load(sessionID); err == nil {
-				session = s.Data
+				sess = s.Data
 			} else {
 				log.ErrorR(req, err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -51,11 +51,11 @@ func handler(h http.Handler) http.Handler {
 			}
 		}
 
-		ctx := context.WithValue(context.Background(), ContextKeySession, &session)
+		ctx := context.WithValue(context.Background(), ContextKeySession, &sess)
 		req = req.WithContext(ctx)
 		h.ServeHTTP(w, req)
 
-		s.Data = session
+		s.Data = sess
 
 		err := s.Store()
 		if err != nil {
@@ -66,8 +66,8 @@ func handler(h http.Handler) http.Handler {
 	})
 }
 
-//getSessionIDFromRequest will attempt to pull the session ID from the cookie on
-//the request. If err is not nil, an empty string will be returned instead.
+// getSessionIDFromRequest will attempt to pull the session ID from the cookie on
+// the request. If err is not nil, an empty string will be returned instead.
 func getSessionIDFromRequest(cookieName string, req *http.Request) string {
 
 	cookie, err := req.Cookie(cookieName)
@@ -79,8 +79,8 @@ func getSessionIDFromRequest(cookieName string, req *http.Request) string {
 	return cookie.Value
 }
 
-//setSessionIDOnResponse will refresh the session cookie in case the ID has been
-//changed since load
+// setSessionIDOnResponse will refresh the session cookie in case the ID has been
+// changed since load
 func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store) {
 	cookie := &http.Cookie{
 		Value: s.ID + s.GenerateSignature(),
@@ -92,5 +92,9 @@ func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store) {
 // GetSessionFromRequest retrieves session data from a given request,
 // fetching it from the context using the ContextKeySession
 func GetSessionFromRequest(req *http.Request) *session.Session {
-	return req.Context().Value(ContextKeySession).(*session.Session)
+	s := req.Context().Value(ContextKeySession)
+	if s != nil {
+		return s.(*session.Session)
+	}
+	return nil
 }
