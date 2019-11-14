@@ -1,5 +1,8 @@
 lint_output  := lint.txt
 
+.EXPORT_ALL_VARIABLES:
+GO111MODULE = on
+
 .PHONY: all
 all: fmt test lint
 
@@ -7,22 +10,15 @@ all: fmt test lint
 fmt:
 	go fmt ./...
 
-.PHONY: deps
-deps:
-	go get ./...
-
-.PHONY: test-deps
-test-deps: deps
-	go get -t ./...
-
 .PHONY: test
 test: test-unit
 
 .PHONY: test-unit
-test-unit: test-deps
-	@set -a; go test ./... -run 'Unit'
+test-unit:
+	go test ./... -run 'Unit'
 
 .PHONY: lint
+lint: export GO111MODULE=off
 lint:
 	go get -u github.com/alecthomas/gometalinter
 	gometalinter --install

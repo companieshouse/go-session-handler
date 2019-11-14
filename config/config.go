@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/companieshouse/chs.go/log"
-	"github.com/ian-kent/gofigure"
+	"github.com/companieshouse/gofigure"
 )
 
 // Config holds the session handler configuration
