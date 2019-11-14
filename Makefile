@@ -1,3 +1,4 @@
+TESTS ?= ./...
 lint_output  := lint.txt
 
 .EXPORT_ALL_VARIABLES:
@@ -15,7 +16,7 @@ test: test-unit
 
 .PHONY: test-unit
 test-unit:
-	go test ./... -run 'Unit'
+	go test $(TESTS) -run 'Unit'
 
 .PHONY: lint
 lint: export GO111MODULE=off
