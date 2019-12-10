@@ -16,7 +16,7 @@ test: test-unit
 
 .PHONY: test-unit
 test-unit:
-	go test $(TESTS) -run 'Unit -coverprofile=coverage.out'
+	go test $(TESTS) -run 'Unit' -coverprofile=coverage.out
 
 .PHONY: lint
 lint: export GO111MODULE=off
