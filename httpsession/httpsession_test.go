@@ -9,9 +9,9 @@ import (
 
 // ---------------- Routes Through getSessionIDFromRequest() ----------------
 
-// TestGetSessionIDFromRequestInvalid - Verify that if a cookie doesn't exist by
+// TestUnitGetSessionIDFromRequestInvalid - Verify that if a cookie doesn't exist by
 // the name the config specifies, a blank session ID is returned
-func TestGetSessionIDFromRequestInvalid(t *testing.T) {
+func TestUnitGetSessionIDFromRequestInvalid(t *testing.T) {
 
 	Convey("Given the cookie by the name TEST doesn't exist", t, func() {
 
@@ -34,9 +34,9 @@ func TestGetSessionIDFromRequestInvalid(t *testing.T) {
 	})
 }
 
-// TestGetSessionIDFromRequestHappyPath - Verify that if a cookie does exist by
+// TestUnitGetSessionIDFromRequestHappyPath - Verify that if a cookie does exist by
 // the name the config specifies, a valid ID is returned
-func TestGetSessionIDFromRequestHappyPath(t *testing.T) {
+func TestUnitGetSessionIDFromRequestHappyPath(t *testing.T) {
 
 	Convey("Given the cookie by the name TEST exists", t, func() {
 

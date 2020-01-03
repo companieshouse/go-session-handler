@@ -1,7 +1,7 @@
 package session
 
 import (
-    "os"
+	"os"
 	"testing"
 	"time"
 
@@ -9,16 +9,16 @@ import (
 )
 
 func initConfig() {
-    os.Setenv("DEFAULT_SESSION_EXPIRATION", "5")
+	os.Setenv("DEFAULT_SESSION_EXPIRATION", "5")
 }
 
 func cleanupConfig() {
-    os.Unsetenv("DEFAULT_SESSION_EXPIRATION")
+	os.Unsetenv("DEFAULT_SESSION_EXPIRATION")
 }
 
-// TestGetAccessToken verifies that the session data access token is returned
+// TestUnitGetAccessToken verifies that the session data access token is returned
 // correctly
-func TestGetAccessToken(t *testing.T) {
+func TestUnitGetAccessToken(t *testing.T) {
 
 	Convey("Given I have session data with an access token", t, func() {
 
@@ -47,9 +47,9 @@ func TestGetAccessToken(t *testing.T) {
 	})
 }
 
-// TestGetRefreshToken verifies that the session data refresh token is returned
+// TestUnitGetRefreshToken verifies that the session data refresh token is returned
 // correctly
-func TestGetRefreshToken(t *testing.T) {
+func TestUnitGetRefreshToken(t *testing.T) {
 
 	Convey("Given I have session data with a refresh token", t, func() {
 
@@ -78,9 +78,9 @@ func TestGetRefreshToken(t *testing.T) {
 	})
 }
 
-// TestSetAccessToken verifies that the session data access token is stored
+// TestUnitSetAccessToken verifies that the session data access token is stored
 // correctly
-func TestSetAccessToken(t *testing.T) {
+func TestUnitSetAccessToken(t *testing.T) {
 
 	Convey("Given I have session data with an old access token", t, func() {
 
@@ -107,9 +107,9 @@ func TestSetAccessToken(t *testing.T) {
 	})
 }
 
-// TestSetRefreshToken verifies that the session data refresh token is stored
+// TestUnitSetRefreshToken verifies that the session data refresh token is stored
 // correctly
-func TestSetRefreshToken(t *testing.T) {
+func TestUnitSetRefreshToken(t *testing.T) {
 
 	Convey("Given I have session data with an old refresh token", t, func() {
 
@@ -136,9 +136,9 @@ func TestSetRefreshToken(t *testing.T) {
 	})
 }
 
-// TestGetOauth2TokenUserSignedIn verifies that an oauth2 token is returned when
+// TestUnitGetOauth2TokenUserSignedIn verifies that an oauth2 token is returned when
 // a user is signed in
-func TestGetOauth2TokenUserSignedIn(t *testing.T) {
+func TestUnitGetOauth2TokenUserSignedIn(t *testing.T) {
 
 	Convey("Given I have session data for a signed-in session", t, func() {
 		accessToken := "Foo"
@@ -175,9 +175,9 @@ func TestGetOauth2TokenUserSignedIn(t *testing.T) {
 	})
 }
 
-// TestGetOauth2TokenUserNotSignedIn verifies that nothing is returned when
+// TestUnitGetOauth2TokenNotUserSignedIn verifies that nothing is returned when
 // a user is signed in
-func TestGetOauth2TokenNotUserSignedIn(t *testing.T) {
+func TestUnitGetOauth2TokenNotUserSignedIn(t *testing.T) {
 
 	Convey("Given I have session data for a non-signed-in session", t, func() {
 
@@ -199,9 +199,9 @@ func TestGetOauth2TokenNotUserSignedIn(t *testing.T) {
 	})
 }
 
-// TestIsSignedInEmptySessionDataMap verifies that false is returned when
+// TestUnitIsSignedInEmptySessionDataMap verifies that false is returned when
 // checking if an empty session is signed in
-func TestIsSignedInEmptySessionDataMap(t *testing.T) {
+func TestUnitIsSignedInEmptySessionDataMap(t *testing.T) {
 
 	Convey("Given I have an empty session map", t, func() {
 
@@ -219,8 +219,8 @@ func TestIsSignedInEmptySessionDataMap(t *testing.T) {
 	})
 }
 
-// TestGetExpirationHappyPath verifies that expiration is returned successfully
-func TestGetExpirationHappyPath(t *testing.T) {
+// TestUnitGetExpirationHappyPath verifies that expiration is returned successfully
+func TestUnitGetExpirationHappyPath(t *testing.T) {
 
 	Convey("Given I have some session data with an 'expires_in' token", t, func() {
 
@@ -246,9 +246,9 @@ func TestGetExpirationHappyPath(t *testing.T) {
 	})
 }
 
-// TestGetExpirationNonePresent verifies that when expiration is not present on
+// TestUnitGetExpirationNonePresent verifies that when expiration is not present on
 // the session, 0 is returned
-func TestGetExpirationNonePresent(t *testing.T) {
+func TestUnitGetExpirationNonePresent(t *testing.T) {
 
 	Convey("Given I have some session data with no 'expires_in' token", t, func() {
 
@@ -270,9 +270,9 @@ func TestGetExpirationNonePresent(t *testing.T) {
 	})
 }
 
-// TestRefreshExpiration verifies that once refreshed, expiration is not nil
-func TestRefreshExpiration(t *testing.T) {
-    initConfig()
+// TestUnitRefreshExpiration verifies that once refreshed, expiration is not nil
+func TestUnitRefreshExpiration(t *testing.T) {
+	initConfig()
 
 	Convey("Given I have some session data", t, func() {
 
@@ -280,7 +280,7 @@ func TestRefreshExpiration(t *testing.T) {
 			"signin_info": map[string]interface{}{
 				"access_token": map[string]interface{}{},
 			},
-            "expires": 5,
+			"expires": 5,
 		}
 
 		Convey("When I call RefreshExpiration", func() {
@@ -294,5 +294,5 @@ func TestRefreshExpiration(t *testing.T) {
 		})
 	})
 
-    cleanupConfig()
+	cleanupConfig()
 }
