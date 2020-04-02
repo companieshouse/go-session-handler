@@ -5,7 +5,7 @@ lint_output  := lint.txt
 GO111MODULE = on
 
 .PHONY: all
-all: fmt test lint
+all: clean fmt test lint
 
 .PHONY: fmt
 fmt:
@@ -24,3 +24,8 @@ lint:
 	go get -u github.com/alecthomas/gometalinter
 	gometalinter --install
 	gometalinter ./... > $(lint_output); true
+
+.PHONY: clean
+clean:
+	go mod tidy
+
