@@ -306,6 +306,42 @@ func TestUnitValidateExpirationNoExpirationSet(t *testing.T) {
 	cleanupConfig()
 }
 
+// TestUnitValidateExpirationExpirationNil - Verify that when 'expires' is nil
+// on the store, it is set in validateExpiration
+func TestUnitValidateExpirationExpirationNil(t *testing.T) {
+
+	initConfig()
+
+	Convey("Given I have an session store with expires set to 0", t, func() {
+
+		s := NewStore(nil)
+
+		data := map[string]interface{}{
+			"expires": nil,
+			"signin_info": map[string]interface{}{
+				"access_token": map[string]interface{}{
+					"expires_in": uint16(123),
+				},
+			},
+		}
+
+		s.Data = data
+
+		Convey("Given I call validate expiration on the store", func() {
+
+			err := s.validateExpiration()
+
+			Convey("Then no errors are returned and expires has been set", func() {
+
+				So(err, ShouldBeNil)
+				So(s.Expires, ShouldNotEqual, uint64(0))
+			})
+		})
+	})
+
+	cleanupConfig()
+}
+
 // ------------------- Routes Through Delete() -------------------
 
 // TestUnitDeleteErrorPath - Verify error trapping is enforced if there's an
