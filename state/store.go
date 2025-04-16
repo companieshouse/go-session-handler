@@ -246,8 +246,11 @@ func (s *Store) decodeSession(session string) (map[string]interface{}, error) {
 //validateExpiration validates that the Expires and Expiration values on the
 //Store object are valid, and sets them if required.
 func (s *Store) validateExpiration() error {
-
-	s.Expires = uint64(s.Data["expires"].(uint32))
+	if s.Data["expires"] == nil {
+		s.Expires = uint64(0)
+	} else {
+		s.Expires = uint64(s.Data["expires"].(uint32))
+	}
 
 	if s.Expires == uint64(0) {
 		err := s.setupExpiration()
