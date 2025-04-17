@@ -4,8 +4,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/companieshouse/chs.go/log"
+
+	"github.com/companieshouse/go-session-handler/config"
 	goauth2 "golang.org/x/oauth2"
-    "github.com/companieshouse/go-session-handler/config"
 )
 
 // Session is a map respresentation of the session data
@@ -60,10 +62,19 @@ func (data *Session) SetRefreshToken(refreshToken string) {
 
 // GetExpiration returns the expiration period from the session data
 func (data *Session) GetExpiration() uint64 {
-	signinInfo := (*data)["signin_info"].(map[string]interface{})
-	accessTokenMap := (signinInfo)["access_token"].(map[string]interface{})
+	signinInfo, ok := (*data)["signin_info"].(map[string]interface{})
+	if !ok {
+		log.Info("GetExpiration(): 'signin_info' not found - returning expiration of '0'")
+		return uint64(0)
+	}
+	accessTokenMap, ok := (signinInfo)["access_token"].(map[string]interface{})
+	if !ok {
+		log.Info("GetExpiration(): 'access_token' not found - returning expiration of '0'")
+		return uint64(0)
+	}
 	expiration, ok := (accessTokenMap)["expires_in"].(uint16)
 	if !ok {
+		log.Info("GetExpiration(): 'expires_in' not found - returning expiration of '0'")
 		return uint64(0)
 	}
 	return uint64(expiration)
@@ -73,7 +84,7 @@ func (data *Session) GetExpiration() uint64 {
 // time plus the expiration period
 func (data *Session) RefreshExpiration() error {
 	var err error
-    expiration := data.GetExpiration()
+	expiration := data.GetExpiration()
 	if expiration == uint64(0) {
 		expiration, err = strconv.ParseUint(config.Get().DefaultExpiration, 0, 64)
 		if err != nil {

@@ -252,13 +252,36 @@ func TestUnitGetExpirationNonePresent(t *testing.T) {
 
 	Convey("Given I have some session data with no 'expires_in' token", t, func() {
 
-		var sessionData Session = map[string]interface{}{
-			"signin_info": map[string]interface{}{
-				"access_token": map[string]interface{}{},
-			},
-		}
+		Convey("When I call GetExpiration with no sign in info", func() {
+
+			var sessionData Session = map[string]interface{}{}
+
+			expiration := sessionData.GetExpiration()
+
+			Convey("Then 0 should be returned", func() {
+				So(expiration, ShouldEqual, uint64(0))
+			})
+		})
+
+		Convey("When I call GetExpiration with no access_token", func() {
+			var sessionData Session = map[string]interface{}{
+				"signin_info": map[string]interface{}{},
+			}
+
+			expiration := sessionData.GetExpiration()
+
+			Convey("Then 0 should be returned", func() {
+
+				So(expiration, ShouldEqual, uint64(0))
+			})
+		})
 
 		Convey("When I call GetExpiration", func() {
+			var sessionData Session = map[string]interface{}{
+				"signin_info": map[string]interface{}{
+					"access_token": map[string]interface{}{},
+				},
+			}
 
 			expiration := sessionData.GetExpiration()
 

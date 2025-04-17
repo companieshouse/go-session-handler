@@ -13,14 +13,14 @@ import (
 	redis "gopkg.in/redis.v5"
 )
 
-//Multiples of 3 bytes avoids = padding in base64 string
-//7 * 3 bytes = (21/3) * 4 = 28 base64 characters
+// Multiples of 3 bytes avoids = padding in base64 string
+// 7 * 3 bytes = (21/3) * 4 = 28 base64 characters
 const idOctets = 7 * 3
 const signatureStart = (idOctets * 4) / 3
 const signatureLength = 27 //160 bits, base 64 encoded
 const cookieValueLength = signatureStart + signatureLength
 
-//Store is the struct that is used to load/store the session.
+// Store is the struct that is used to load/store the session.
 type Store struct {
 	ID      string
 	Expires uint64
@@ -28,14 +28,14 @@ type Store struct {
 	cache   *Cache
 }
 
-//NewStore will properly initialise a new Store object.
+// NewStore will properly initialise a new Store object.
 func NewStore(cache *Cache) *Store {
 
 	return &Store{cache: cache}
 }
 
-//Load is used to try and get a session from the cache. If it succeeds it will
-//load the session, otherwise it will return an error.
+// Load is used to try and get a session from the cache. If it succeeds it will
+// load the session, otherwise it will return an error.
 func (s *Store) Load(sessionID string) error {
 
 	err := s.validateSessionID(sessionID)
@@ -94,10 +94,13 @@ func (s *Store) Store() error {
 	}
 
 	if len(s.ID) == 0 {
+		log.Info("Store(): session ID not set - generating new ID")
 		if err := s.regenerateID(); err != nil {
 			return err
 		}
 	}
+
+	log.Info("Store(): storing session with ID " + s.ID)
 
 	if s.Expires == 0 {
 		if err := s.setupExpiration(); err != nil {
@@ -117,10 +120,10 @@ func (s *Store) Store() error {
 	return nil
 }
 
-//Delete will clear the requested session from the backing store. Note: Delete
-//does not clear the loaded session. The Clear method will take care of that.
-//If the string passed in is nil, it will delete the session with an id the same
-//as that of s.ID
+// Delete will clear the requested session from the backing store. Note: Delete
+// does not clear the loaded session. The Clear method will take care of that.
+// If the string passed in is nil, it will delete the session with an id the same
+// as that of s.ID
 func (s *Store) Delete(id *string) error {
 	sessionID := s.ID
 
@@ -132,8 +135,8 @@ func (s *Store) Delete(id *string) error {
 	return err
 }
 
-//Clear destroys the current loaded session and removes it from the backing
-//store. It will also regenerate the session ID.
+// Clear destroys the current loaded session and removes it from the backing
+// store. It will also regenerate the session ID.
 func (s *Store) Clear() error {
 	err := s.Delete(nil) //Delete the previously stored Session because we're going to regenerate the IDS
 	if err != nil {
@@ -145,7 +148,7 @@ func (s *Store) Clear() error {
 	return err
 }
 
-//regenerateID refreshes the token against the Store struct
+// regenerateID refreshes the token against the Store struct
 func (s *Store) regenerateID() error {
 	octets := make([]byte, idOctets)
 
@@ -157,8 +160,8 @@ func (s *Store) regenerateID() error {
 	return nil
 }
 
-//GenerateSignature will generate a new signature based on the Store ID and
-//the cookie secret.
+// GenerateSignature will generate a new signature based on the Store ID and
+// the cookie secret.
 func (s *Store) GenerateSignature() string {
 	sum := encoding.GenerateSha1Sum([]byte(s.ID + config.Get().CookieSecret))
 	sig := encoding.EncodeBase64(sum[:])
@@ -166,8 +169,8 @@ func (s *Store) GenerateSignature() string {
 	return sig[0:signatureLength]
 }
 
-//setupExpiration will set the 'Expires' variable against the Store
-//This should only be called if an expiration is not already set
+// setupExpiration will set the 'Expires' variable against the Store
+// This should only be called if an expiration is not already set
 func (s *Store) setupExpiration() error {
 
 	var err error
@@ -216,7 +219,7 @@ func (s *Store) validateSessionID(sessionID string) error {
 	return nil
 }
 
-//fetchSession will get the session from the Cache
+// fetchSession will get the session from the Cache
 func (s *Store) fetchSession() (string, error) {
 
 	storedSession, err := s.cache.getSessionData(s.ID)
@@ -227,7 +230,7 @@ func (s *Store) fetchSession() (string, error) {
 	return storedSession, nil
 }
 
-//decodeSession will try to base64 decode the session and then msgpack decode it.
+// decodeSession will try to base64 decode the session and then msgpack decode it.
 func (s *Store) decodeSession(session string) (map[string]interface{}, error) {
 
 	base64DecodedSession, err := encoding.DecodeBase64(session)
@@ -243,10 +246,11 @@ func (s *Store) decodeSession(session string) (map[string]interface{}, error) {
 	return msgpackDecodedSession, nil
 }
 
-//validateExpiration validates that the Expires and Expiration values on the
-//Store object are valid, and sets them if required.
+// validateExpiration validates that the Expires and Expiration values on the
+// Store object are valid, and sets them if required.
 func (s *Store) validateExpiration() error {
 	if s.Data["expires"] == nil {
+		log.Info("validateExpiration(): 'expires' not found - setting expires to '0'")
 		s.Expires = uint64(0)
 	} else {
 		s.Expires = uint64(s.Data["expires"].(uint32))
@@ -268,7 +272,7 @@ func (s *Store) validateExpiration() error {
 	return nil
 }
 
-//storeSession will take the valid Store object and save it in Redis
+// storeSession will take the valid Store object and save it in Redis
 func (s *Store) storeSession(encodedData string) error {
 
 	var err error
@@ -276,8 +280,8 @@ func (s *Store) storeSession(encodedData string) error {
 	return err
 }
 
-//encodeSessionData performs the messagepack and base 64 encoding on the
-//session data and returns the result, or an error if one occurs
+// encodeSessionData performs the messagepack and base 64 encoding on the
+// session data and returns the result, or an error if one occurs
 func (s *Store) encodeSessionData() (string, error) {
 
 	msgpackEncodedData, err := encoding.EncodeMsgPack(s.Data)
