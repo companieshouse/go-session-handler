@@ -1,6 +1,6 @@
 module github.com/companieshouse/go-session-handler
 
-go 1.26.6
+go 1.26.9
 
 require (
 	github.com/companieshouse/chs.go v1.2.18
