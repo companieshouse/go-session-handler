@@ -17,13 +17,13 @@ type Connection interface {
 	Del(key ...string) *redis.IntCmd
 }
 
-//Cache is the struct that contains the connection info for retrieving/saving
-//The session data.
+// Cache is the struct that contains the connection info for retrieving/saving
+// The session data.
 type Cache struct {
 	connection Connection
 }
 
-//NewCache will properly initialise a new Cache object.
+// NewCache will properly initialise a new Cache object.
 func NewCache(addr string, db int, password string) *Cache {
 	cache := &Cache{}
 
@@ -41,23 +41,23 @@ func NewCache(addr string, db int, password string) *Cache {
    CACHE
 */
 
-//setSessionData stores the Session data in the Cache.
+// setSessionData stores the Session data in the Cache.
 func (c *Cache) setSessionData(key string, value interface{}) *redis.StatusCmd {
 	return c.connection.Set(key, value, 0)
 }
 
-//getSessionData loads the Session data from the Cache.
+// getSessionData loads the Session data from the Cache.
 func (c *Cache) getSessionData(key string) (string, error) {
 	return c.connection.Get(key).Result()
 }
 
-//deleteSessionData removes the Session data from the Cache.
+// deleteSessionData removes the Session data from the Cache.
 func (c *Cache) deleteSessionData(key string) error {
 	_, err := c.connection.Del(key).Result()
 	return err
 }
 
-//setRedisClient into the Cache struct
+// setRedisClient into the Cache struct
 func (c *Cache) setRedisClient(options *redis.Options) {
 	client := redis.NewClient(options)
 	c.connection = client

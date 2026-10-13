@@ -8,7 +8,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 )
 
-//DecodeBase64 takes a base64-encoded string and decodes it to a []byte.
+// DecodeBase64 takes a base64-encoded string and decodes it to a []byte.
 func DecodeBase64(base64Encoded string) ([]byte, error) {
 	base64Decoded, err := base64.StdEncoding.DecodeString(base64Encoded)
 
@@ -20,7 +20,7 @@ func EncodeBase64(bytes []byte) string {
 	return base64.StdEncoding.EncodeToString(bytes)
 }
 
-//DecodeMsgPack takes a msgpack'd []byte and decodes it to json.
+// DecodeMsgPack takes a msgpack'd []byte and decodes it to json.
 func DecodeMsgPack(msgpackEncoded []byte) (map[string]interface{}, error) {
 	var decoded map[string]interface{}
 
@@ -45,7 +45,7 @@ func EncodeMsgPack(data map[string]interface{}) ([]byte, error) {
 	return encBuf.Bytes(), nil
 }
 
-//GenerateSha1Sum generates a sha1 sum for a given []byte.
+// GenerateSha1Sum generates a sha1 sum for a given []byte.
 func GenerateSha1Sum(sum []byte) [20]byte {
 	return sha1.Sum(sum)
 }
