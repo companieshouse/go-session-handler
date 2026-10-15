@@ -1,9 +1,14 @@
 package httpsession
 
 import (
+	"context"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/companieshouse/go-session-handler/session"
+	"github.com/companieshouse/go-session-handler/state"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -56,5 +61,37 @@ func TestUnitGetSessionIDFromRequestHappyPath(t *testing.T) {
 				So(sessionID, ShouldEqual, "Foo")
 			})
 		})
+	})
+}
+
+func TestUnitSetSessionIDOnResponse(t *testing.T) {
+	Convey("Test setSessionIDOnResponse", t, func() {
+		_ = os.Setenv("COOKIE_NAME", "test-cookie")
+		w := httptest.NewRecorder()
+		s := &state.Store{}
+		setSessionIDOnResponse(w, s)
+		So(w.Header().Get("Set-Cookie"), ShouldEqual, "test-cookie=2jmj7l5rSw0yVb/vlWAYkK/YBwk")
+	})
+}
+
+func TestUnitGetSessionFromRequest(t *testing.T) {
+	Convey("Test GetSessionFromRequest", t, func() {
+		req, _ := http.NewRequest("GET", "test", nil)
+		ctx := context.WithValue(req.Context(), "testkey", "testval")
+		s := GetSessionFromRequest(req.WithContext(ctx))
+		So(s, ShouldBeNil)
+
+		var sess session.Session = map[string]interface{}{
+			"signin_info": map[string]interface{}{
+				"access_token": map[string]interface{}{
+					"refresh_token": "refresh_token",
+				},
+			},
+		}
+		sess.SetAccessToken("testAccessToken")
+		ctx = context.WithValue(context.Background(), ContextKeySession, &sess)
+
+		s = GetSessionFromRequest(req.WithContext(ctx))
+		So(s.GetAccessToken(), ShouldEqual, "testAccessToken")
 	})
 }

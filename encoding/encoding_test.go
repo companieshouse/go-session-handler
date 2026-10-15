@@ -13,7 +13,7 @@ import (
 
 // TestDecodeBase64 - Verify no errors are thrown when DecodeBase64 is called on
 // a base64 encoded string
-func TestDecodeBase64(t *testing.T) {
+func TestUnitDecodeBase64(t *testing.T) {
 
 	Convey("Given I base64 encode a test byte array", t, func() {
 
@@ -37,7 +37,7 @@ func TestDecodeBase64(t *testing.T) {
 
 // TestEncodeBase64 - Verify no errors are thrown when we base64 decode a string
 // which had previously been encoded
-func TestEncodeBase64(t *testing.T) {
+func TestUnitEncodeBase64(t *testing.T) {
 
 	Convey("Given I call EncodeBase64 on a byte array", t, func() {
 
@@ -61,7 +61,7 @@ func TestEncodeBase64(t *testing.T) {
 
 // TestDecodeMsgPack - Verify no errors are thrown when DecodeMsgPack is called
 // on previously message pack encoded data
-func TestDecodeMsgPack(t *testing.T) {
+func TestUnitDecodeMsgPack(t *testing.T) {
 
 	Convey("Given I message pack encode some JSON data", t, func() {
 
@@ -70,7 +70,7 @@ func TestDecodeMsgPack(t *testing.T) {
 		var encoded []byte
 		encBuf := bytes.NewBuffer(encoded)
 		enc := msgpack.NewEncoder(encBuf)
-		enc.Encode(test)
+		_ = enc.Encode(test)
 		encodedBytes := encBuf.Bytes()
 
 		Convey("When I call DecodeMsgPack on the result", func() {
@@ -90,7 +90,7 @@ func TestDecodeMsgPack(t *testing.T) {
 
 // TestEncodeMsgPack - Verify no errors are thrown when EncodeMsgPack is called
 // and subsequently decoded
-func TestEncodeMsgPack(t *testing.T) {
+func TestUnitEncodeMsgPack(t *testing.T) {
 
 	Convey("Given I call EncodeMsgPack on some JSON data", t, func() {
 
@@ -115,5 +115,12 @@ func TestEncodeMsgPack(t *testing.T) {
 				})
 			})
 		})
+	})
+}
+
+func TestUnitGenerateSha1Sum(t *testing.T) {
+	Convey("test GenerateSha1Sum", t, func() {
+		sum := GenerateSha1Sum([]byte("test"))
+		So(sum, ShouldEqual, [20]uint8{169, 74, 143, 229, 204, 177, 155, 166, 28, 76, 8, 115, 211, 145, 233, 135, 152, 47, 187, 211})
 	})
 }
