@@ -1,4 +1,4 @@
-TESTS ?= ./...
+TESTS ?= $(shell go list ./... | grep -vE '/state/mocks(/|$$)')
 
 .EXPORT_ALL_VARIABLES:
 GO111MODULE = on
