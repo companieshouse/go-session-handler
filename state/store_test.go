@@ -153,6 +153,50 @@ func TestUnitStoreErrorInValidateSession(t *testing.T) {
 	cleanupConfig()
 }
 
+func TestUnitStoreErrorInSetupExpiration(t *testing.T) {
+
+	initConfig()
+
+	Convey("Given I create a store with valid data but there's an error when saving the session",
+		t, func() {
+
+			connection := &mockState.Connection{}
+			connection.On("Set", mock.AnythingOfType("string"),
+				mock.AnythingOfType("string"), time.Duration(0)).
+				Return(redis.NewStatusResult("", errors.New("Error saving session data")))
+
+			c := &Cache{connection: connection}
+
+			data := map[string]interface{}{
+				"test": "hello, world!",
+				"signin_info": map[string]interface{}{
+					"access_token": map[string]interface{}{
+						"expires_in": uint16(0),
+					},
+				},
+			}
+
+			cfg := config.Get()
+			cfg.DefaultExpiration = "Invalid"
+
+			s := NewStore(c)
+			s.Data = data
+
+			Convey("When I store the session", func() {
+
+				err := s.Store()
+
+				Convey("Then I expect the error to be caught and returned", func() {
+
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "strconv.ParseUint: parsing \"Invalid\": invalid syntax")
+				})
+			})
+		})
+
+	cleanupConfig()
+}
+
 // TestUnitStoreErrorInSetSession - Verify error trapping is enforced if there's an
 // issue when saving the session data
 func TestUnitStoreErrorInSetSession(t *testing.T) {
@@ -638,6 +682,44 @@ func TestUnitLoadErrorInValidateSignature(t *testing.T) {
 	cleanupConfig()
 }
 
+func TestUnitLoadErrorRetrievingSessionRedisNil(t *testing.T) {
+
+	initConfig()
+
+	Convey("Given I have a valid session ID", t, func() {
+
+		id := strings.Repeat("a", signatureStart)
+
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + "hello"))
+		signature := encoding.EncodeBase64(signatureByte[:])
+
+		sessionID := id + signature[0:signatureLength]
+
+		Convey("If Redis returns an error", func() {
+
+			connection := &mockState.Connection{}
+			connection.On("Get", id).Return(redis.NewStringResult("",
+				redis.Nil))
+
+			cache := &Cache{connection: connection}
+
+			Convey("When I attempt to load the session", func() {
+
+				s := NewStore(cache)
+
+				err := s.Load(sessionID)
+
+				Convey("Then an error should be thrown whilst decoding the session", func() {
+
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+
+	cleanupConfig()
+}
+
 // TestUnitLoadErrorRetrievingSession - Verify error trapping whilst retrieving session
 // data from Redis
 func TestUnitLoadErrorRetrievingSession(t *testing.T) {
@@ -717,4 +799,94 @@ func TestUnitLoadErrorDecodingSession(t *testing.T) {
 	})
 
 	cleanupConfig()
+}
+
+func TestUnitLoadSessionExpired(t *testing.T) {
+
+	initConfig()
+
+	Convey("Given I have a valid session ID", t, func() {
+
+		id := strings.Repeat("a", signatureStart)
+
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + "hello"))
+		signature := encoding.EncodeBase64(signatureByte[:])
+
+		sessionID := id + signature[0:signatureLength]
+
+		Convey("If Redis returns blank data", func() {
+
+			connection := &mockState.Connection{}
+			connection.On("Get", id).Return(redis.NewStringResult("gaR0ZXN0pHRlc3Q=", nil))
+
+			cache := &Cache{connection: connection}
+
+			Convey("When I attempt to load the session", func() {
+
+				s := NewStore(cache)
+
+				err := s.Load(sessionID)
+
+				Convey("Then no error should be thrown for expired session", func() {
+
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+
+	cleanupConfig()
+}
+
+func TestUnitLoadSessionSuccess(t *testing.T) {
+
+	initConfig()
+
+	Convey("Given I have a valid session ID", t, func() {
+
+		id := strings.Repeat("a", signatureStart)
+
+		signatureByte := encoding.GenerateSha1Sum([]byte(id + "hello"))
+		signature := encoding.EncodeBase64(signatureByte[:])
+
+		sessionID := id + signature[0:signatureLength]
+
+		Convey("If Redis returns blank data", func() {
+
+			connection := &mockState.Connection{}
+			connection.On("Get", id).Return(redis.NewStringResult("gqR0ZXN0pHRlc3SnZXhwaXJlc859ohU7", nil))
+
+			cache := &Cache{connection: connection}
+
+			Convey("When I attempt to load the session", func() {
+
+				s := NewStore(cache)
+
+				err := s.Load(sessionID)
+
+				Convey("Then no error should be thrown", func() {
+
+					So(err, ShouldBeNil)
+				})
+			})
+		})
+	})
+
+	cleanupConfig()
+}
+
+func TestUnitValidateSessionIDInvalidSignature(t *testing.T) {
+	Convey("Given an invalid signature", t, func() {
+		id := strings.Repeat("a", signatureStart)
+
+		sessionID := "invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalid"
+
+		connection := &mockState.Connection{}
+		connection.On("Get", id).Return(redis.NewStringResult("gqR0ZXN0pHRlc3SnZXhwaXJlc859ohU7", nil))
+
+		cache := &Cache{connection: connection}
+		s := NewStore(cache)
+		err := s.validateSessionID(sessionID)
+		So(err.Error(), ShouldStartWith, "Session signature does not match the expected value!")
+	})
 }

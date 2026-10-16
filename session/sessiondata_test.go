@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/companieshouse/go-session-handler/config"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -308,13 +309,20 @@ func TestUnitRefreshExpiration(t *testing.T) {
 
 		Convey("When I call RefreshExpiration", func() {
 
-			sessionData.RefreshExpiration()
+			_ = sessionData.RefreshExpiration()
 
 			Convey("Then 'expires' should be set", func() {
-
 				So(sessionData.getExpiry(), ShouldNotBeNil)
 			})
 		})
+
+		Convey("invalid config", func() {
+			cfg := config.Get()
+			cfg.DefaultExpiration = "Invalid"
+			err := sessionData.RefreshExpiration()
+			So(err, ShouldNotBeNil)
+		})
+
 	})
 
 	cleanupConfig()
