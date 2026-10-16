@@ -9,11 +9,11 @@ import (
 )
 
 func initConfig() {
-	os.Setenv("DEFAULT_SESSION_EXPIRATION", "5")
+	_ = os.Setenv("DEFAULT_SESSION_EXPIRATION", "5")
 }
 
 func cleanupConfig() {
-	os.Unsetenv("DEFAULT_SESSION_EXPIRATION")
+	_ = os.Unsetenv("DEFAULT_SESSION_EXPIRATION")
 }
 
 // TestUnitGetAccessToken verifies that the session data access token is returned

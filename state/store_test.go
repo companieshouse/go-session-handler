@@ -25,13 +25,13 @@ func getConfig() *config.Config {
 }
 
 func initConfig() {
-	os.Setenv("COOKIE_SECRET", "hello")
-	os.Setenv("COOKIE_NAME", "TEST")
+	_ = os.Setenv("COOKIE_SECRET", "hello")
+	_ = os.Setenv("COOKIE_NAME", "TEST")
 }
 
 func cleanupConfig() {
-	os.Unsetenv("COOKIE_SECRET")
-	os.Unsetenv("COOKIE_NAME")
+	_ = os.Unsetenv("COOKIE_SECRET")
+	_ = os.Unsetenv("COOKIE_NAME")
 }
 
 // ------------------- Routes Through SetSession() -------------------
