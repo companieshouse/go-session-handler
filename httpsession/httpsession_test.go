@@ -9,8 +9,25 @@ import (
 
 	"github.com/companieshouse/go-session-handler/session"
 	"github.com/companieshouse/go-session-handler/state"
+	"github.com/justinas/alice"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+func TestUnitRegister(t *testing.T) {
+	Convey("Test Register", t, func() {
+		var chain = alice.Chain{}
+		chain = Register(chain)
+		So(chain, ShouldNotBeNil)
+	})
+}
+
+func TestUnitHandler(t *testing.T) {
+	Convey("Test Handler", t, func() {
+		var h http.Handler
+		h = handler(h)
+		So(h, ShouldNotBeNil)
+	})
+}
 
 // ---------------- Routes Through getSessionIDFromRequest() ----------------
 
