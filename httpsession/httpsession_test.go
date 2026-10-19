@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
+	"github.com/companieshouse/go-session-handler/config"
 	"github.com/companieshouse/go-session-handler/session"
 	"github.com/companieshouse/go-session-handler/state"
 	"github.com/justinas/alice"
@@ -30,6 +30,16 @@ func TestUnitHandler(t *testing.T) {
 		var h http.Handler
 		h = handler(h)
 		So(h, ShouldNotBeNil)
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		w := httptest.NewRecorder()
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusTeapot)
+		})
+
+		handler(next).ServeHTTP(w, req)
+		So(w.Code, ShouldEqual, http.StatusTeapot)
 	})
 }
 
@@ -87,7 +97,8 @@ func TestUnitGetSessionIDFromRequestHappyPath(t *testing.T) {
 
 func TestUnitSetSessionIDOnResponse(t *testing.T) {
 	Convey("Test setSessionIDOnResponse", t, func() {
-		_ = os.Setenv("COOKIE_NAME", "test-cookie")
+		cfg := config.Get()
+		cfg.CookieName = "test-cookie"
 		w := httptest.NewRecorder()
 		s := &state.Store{}
 		setSessionIDOnResponse(w, s)
