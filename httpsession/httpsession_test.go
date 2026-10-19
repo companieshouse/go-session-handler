@@ -18,6 +18,10 @@ func TestUnitRegister(t *testing.T) {
 		var chain = alice.Chain{}
 		chain = Register(chain)
 		So(chain, ShouldNotBeNil)
+
+		var h http.Handler
+		chain.Then(h)
+		So(chain, ShouldNotBeNil)
 	})
 }
 
