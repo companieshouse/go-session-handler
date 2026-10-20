@@ -2,6 +2,7 @@ package state
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"errors"
 	"strconv"
 	"time"
@@ -203,17 +204,17 @@ func (s *Store) validateSessionID(sessionID string) error {
 
 	if len(sessionID) < cookieValueLength {
 		s.clearSessionData()
-		return errors.New("Cookie signature is less than the desired cookie length")
+		return errors.New("cookie signature is less than the desired cookie length")
 	}
 
 	s.ID = sessionID[0:signatureStart]
 	sig := sessionID[signatureStart:]
 
-	//Validate signature is the same
-	if sig != s.GenerateSignature() {
+	// Validate signature is the same, using a constant-time comparison to
+	// avoid leaking timing information about the expected signature (CWE-208)
+	if subtle.ConstantTimeCompare([]byte(sig), []byte(s.GenerateSignature())) != 1 {
 		s.clearSessionData()
-		return errors.New("Session signature does not match the expected value! " +
-			"Have " + sig + ", but wanted " + s.GenerateSignature())
+		return errors.New("session signature does not match the expected value")
 	}
 
 	return nil
@@ -266,7 +267,7 @@ func (s *Store) validateExpiration() error {
 	now := uint64(time.Now().Unix())
 
 	if s.Expires <= now {
-		return errors.New("Store has expired")
+		return errors.New("store has expired")
 	}
 
 	return nil
