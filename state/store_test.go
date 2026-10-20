@@ -44,7 +44,7 @@ func TestUnitSetSessionErrorOnSave(t *testing.T) {
 
 		connection := &mockState.Connection{}
 		connection.On("Set", "", "", time.Duration(0)).
-			Return(redis.NewStatusResult("", errors.New("Unsuccessful save")))
+			Return(redis.NewStatusResult("", errors.New("unsuccessful save")))
 
 		Convey("When I initialise the Store and try to save it", func() {
 
@@ -57,7 +57,7 @@ func TestUnitSetSessionErrorOnSave(t *testing.T) {
 			Convey("Then I expect the error to be caught and returned", func() {
 
 				So(err, ShouldNotBeNil)
-				So("Unsuccessful save", ShouldEqual, err.Error())
+				So("unsuccessful save", ShouldEqual, err.Error())
 			})
 		})
 	})
@@ -75,7 +75,7 @@ func TestUnitGetSessionErrorPath(t *testing.T) {
 
 		connection := &mockState.Connection{}
 		connection.On("Get", mock.AnythingOfType("string")).
-			Return(redis.NewStringResult(dummySessionData, errors.New("Unsuccessful session retrieval")))
+			Return(redis.NewStringResult(dummySessionData, errors.New("unsuccessful session retrieval")))
 
 		Convey("When I initialise the Store and try to get the session", func() {
 
@@ -89,7 +89,7 @@ func TestUnitGetSessionErrorPath(t *testing.T) {
 				func() {
 
 					So(err, ShouldNotBeNil)
-					So("Unsuccessful session retrieval", ShouldEqual, err.Error())
+					So("unsuccessful session retrieval", ShouldEqual, err.Error())
 					So(session, ShouldBeBlank)
 				})
 		})
@@ -163,7 +163,7 @@ func TestUnitStoreErrorInSetupExpiration(t *testing.T) {
 			connection := &mockState.Connection{}
 			connection.On("Set", mock.AnythingOfType("string"),
 				mock.AnythingOfType("string"), time.Duration(0)).
-				Return(redis.NewStatusResult("", errors.New("Error saving session data")))
+				Return(redis.NewStatusResult("", errors.New("error saving session data")))
 
 			c := &Cache{connection: connection}
 
@@ -306,7 +306,7 @@ func TestUnitValidateExpirationSessionHasExpired(t *testing.T) {
 
 			Convey("Then an appropriate error is returned", func() {
 
-				So(err.Error(), ShouldEqual, "Store has expired")
+				So(err.Error(), ShouldEqual, "store has expired")
 			})
 		})
 	})
@@ -398,7 +398,7 @@ func TestUnitDeleteErrorPath(t *testing.T) {
 
 		connection := &mockState.Connection{}
 		connection.On("Del", "abc").
-			Return(redis.NewIntResult(0, errors.New("Unsuccessful Delete")))
+			Return(redis.NewIntResult(0, errors.New("unsuccessful Delete")))
 
 		Convey("When I initialise the Store and try to delete it", func() {
 
@@ -413,7 +413,7 @@ func TestUnitDeleteErrorPath(t *testing.T) {
 			Convey("Then the error should be caught and returned", func() {
 
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "Unsuccessful Delete")
+				So(err.Error(), ShouldEqual, "unsuccessful Delete")
 			})
 		})
 	})
@@ -465,7 +465,7 @@ func TestUnitClearErrorPath(t *testing.T) {
 
 		connection := &mockState.Connection{}
 		connection.On("Del", "abc").
-			Return(redis.NewIntResult(0, errors.New("Unsuccessful Delete")))
+			Return(redis.NewIntResult(0, errors.New("unsuccessful delete")))
 
 		Convey("When I initialise the Store and try to clear it", func() {
 
@@ -480,7 +480,7 @@ func TestUnitClearErrorPath(t *testing.T) {
 			Convey("Then the error should be caught and returned and ID should remain unchanged", func() {
 
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "Unsuccessful Delete")
+				So(err.Error(), ShouldEqual, "unsuccessful delete")
 				So(s.ID, ShouldEqual, "abc")
 			})
 		})
@@ -547,10 +547,10 @@ func TestUnitValidateCookieSignatureLengthInvalid(t *testing.T) {
 			s := NewStore(c)
 			err := s.validateSessionID(sig)
 
-			Convey("Then an approriate error should be returned", func() {
+			Convey("Then an appropriate error should be returned", func() {
 
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "Cookie signature is less than the desired cookie length")
+				So(err.Error(), ShouldEqual, "cookie signature is less than the desired cookie length")
 			})
 		})
 	})
@@ -887,6 +887,6 @@ func TestUnitValidateSessionIDInvalidSignature(t *testing.T) {
 		cache := &Cache{connection: connection}
 		s := NewStore(cache)
 		err := s.validateSessionID(sessionID)
-		So(err.Error(), ShouldStartWith, "Session signature does not match the expected value!")
+		So(err.Error(), ShouldEqual, "session signature does not match the expected value")
 	})
 }
