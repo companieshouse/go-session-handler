@@ -3,6 +3,7 @@ package httpsession
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/companieshouse/chs.go/log"
 	"github.com/companieshouse/go-session-handler/config"
@@ -82,9 +83,22 @@ func getSessionIDFromRequest(cookieName string, req *http.Request) string {
 // setSessionIDOnResponse will refresh the session cookie in case the ID has been
 // changed since load
 func setSessionIDOnResponse(w http.ResponseWriter, s *state.Store) {
+	cfg := config.Get()
 	cookie := &http.Cookie{
-		Value: s.ID + s.GenerateSignature(),
-		Name:  config.Get().CookieName,
+		Name:     cfg.CookieName,
+		Value:    s.ID + s.GenerateSignature(),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   !cfg.CookieDisableSecure,
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	if s.Expires > 0 {
+		if maxAge := int64(s.Expires) - time.Now().Unix(); maxAge > 0 {
+			cookie.MaxAge = int(maxAge)
+		} else {
+			cookie.MaxAge = -1
+		}
 	}
 	http.SetCookie(w, cookie)
 }
