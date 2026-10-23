@@ -7,13 +7,14 @@ import (
 
 // Config holds the session handler configuration
 type Config struct {
-	gofigure          interface{} `order:"env,flag"`
-	DefaultExpiration string      `env:"DEFAULT_SESSION_EXPIRATION" flag:"default-expiration" flagDesc:"Default Expiration"`
-	CookieName        string      `env:"COOKIE_NAME"                flag:"cookie-name"        flagDesc:"Cookie Name"`
-	CookieSecret      string      `env:"COOKIE_SECRET"              flag:"cookie-secret"      flagDesc:"Cookie Secret"`
-	CacheServer       string      `env:"CACHE_SERVER"               flag:"cache-server"       flagDesc:"Cache Server"`
-	CacheDB           int         `env:"CACHE_DB"                   flag:"cache-db"           flagDesc:"Cache DB"`
-	CachePassword     string      `env:"CACHE_PASSWORD"             flag:"cache-password"     flagDesc:"Cache Password"`
+	gofigure            interface{} `order:"env,flag"`
+	DefaultExpiration   string      `env:"DEFAULT_SESSION_EXPIRATION" flag:"default-expiration"    flagDesc:"Default Expiration"`
+	CookieName          string      `env:"COOKIE_NAME"                flag:"cookie-name"           flagDesc:"Cookie Name"`
+	CookieSecret        string      `env:"COOKIE_SECRET"              flag:"cookie-secret"         flagDesc:"Cookie Secret"`
+	CookieDisableSecure bool        `env:"COOKIE_DISABLE_SECURE"      flag:"cookie-disable-secure" flagDesc:"Cookie Disable Secure - only for dev env"`
+	CacheServer         string      `env:"CACHE_SERVER"               flag:"cache-server"          flagDesc:"Cache Server"`
+	CacheDB             int         `env:"CACHE_DB"                   flag:"cache-db"              flagDesc:"Cache DB"`
+	CachePassword       string      `env:"CACHE_PASSWORD"             flag:"cache-password"        flagDesc:"Cache Password"`
 }
 
 var cfg *Config

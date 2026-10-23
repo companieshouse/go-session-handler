@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/companieshouse/go-session-handler/config"
 	"github.com/companieshouse/go-session-handler/session"
@@ -102,7 +103,47 @@ func TestUnitSetSessionIDOnResponse(t *testing.T) {
 		w := httptest.NewRecorder()
 		s := &state.Store{}
 		setSessionIDOnResponse(w, s)
-		So(w.Header().Get("Set-Cookie"), ShouldEqual, "test-cookie=2jmj7l5rSw0yVb/vlWAYkK/YBwk")
+		So(w.Header().Get("Set-Cookie"), ShouldEqual, "test-cookie=2jmj7l5rSw0yVb/vlWAYkK/YBwk; Path=/; HttpOnly; Secure; SameSite=Lax")
+	})
+
+	Convey("Test setSessionIDOnResponse disable secure", t, func() {
+		cfg := config.Get()
+		cfg.CookieName = "test-cookie"
+		cfg.CookieDisableSecure = true
+		w := httptest.NewRecorder()
+		s := &state.Store{}
+		setSessionIDOnResponse(w, s)
+		So(w.Header().Get("Set-Cookie"), ShouldEqual, "test-cookie=2jmj7l5rSw0yVb/vlWAYkK/YBwk; Path=/; HttpOnly; SameSite=Lax")
+	})
+
+	Convey("Test setSessionIDOnResponse disable secure false", t, func() {
+		cfg := config.Get()
+		cfg.CookieName = "test-cookie"
+		cfg.CookieDisableSecure = false
+		w := httptest.NewRecorder()
+		s := &state.Store{}
+		setSessionIDOnResponse(w, s)
+		So(w.Header().Get("Set-Cookie"), ShouldEqual, "test-cookie=2jmj7l5rSw0yVb/vlWAYkK/YBwk; Path=/; HttpOnly; Secure; SameSite=Lax")
+	})
+
+	Convey("Test setSessionIDOnResponse expiry", t, func() {
+		cfg := config.Get()
+		cfg.CookieName = "test-cookie"
+		w := httptest.NewRecorder()
+		s := &state.Store{}
+		s.Expires = uint64(time.Now().Unix()) + 100
+		setSessionIDOnResponse(w, s)
+		So(w.Header().Get("Set-Cookie"), ShouldEqual, "test-cookie=2jmj7l5rSw0yVb/vlWAYkK/YBwk; Path=/; Max-Age=100; HttpOnly; Secure; SameSite=Lax")
+	})
+
+	Convey("Test setSessionIDOnResponse expired", t, func() {
+		cfg := config.Get()
+		cfg.CookieName = "test-cookie"
+		w := httptest.NewRecorder()
+		s := &state.Store{}
+		s.Expires = uint64(time.Now().Unix()) - 1
+		setSessionIDOnResponse(w, s)
+		So(w.Header().Get("Set-Cookie"), ShouldEqual, "test-cookie=2jmj7l5rSw0yVb/vlWAYkK/YBwk; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
 	})
 }
 
